@@ -1,0 +1,25 @@
+<form class="gluc-actor-config" autocomplete="off">
+  {{#if isNPC}}
+    <div class="form-group">
+      <label>{{localize "GLUC.Actor.EnableForNPC"}}</label>
+      <input type="checkbox" name="enabled" {{#if data.enabled}}checked{{/if}} {{#unless isGM}}disabled{{/unless}} />
+      <p class="notes">{{localize "GLUC.Actor.EnableForNPCHint"}}</p>
+    </div>
+  {{/if}}
+
+  <div class="form-group">
+    <label>{{localize "GLUC.Actor.PortraitOverride"}}</label>
+    <div class="form-fields">
+      <input type="text" name="portraitOverride" value="{{data.portraitOverride}}" placeholder="path/to/image.webp" />
+      <button type="button" class="file-picker" data-type="imagevideo" data-target="portraitOverride">
+        <i class="fas fa-file-import"></i>
+      </button>
+    </div>
+    <p class="notes">{{localize "GLUC.Actor.PortraitOverrideHint"}}</p>
+  </div>
+
+  <footer class="sheet-footer flexrow">
+    <button type="button" class="gluc-test-button"><i class="fas fa-play"></i> {{localize "GLUC.Actor.TestButton"}}</button>
+    <button type="submit"><i class="far fa-save"></i> {{localize "GLUC.Actor.Save"}}</button>
+  </footer>
+</form>

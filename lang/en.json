@@ -1,0 +1,70 @@
+{
+  "GLUC": {
+    "ModuleTitle": "GLUniverse Critical",
+
+    "Settings": {
+      "MenuName": "GM Configuration",
+      "MenuLabel": "Open GM Configuration",
+      "MenuHint": "Image and audio settings for full-screen critical animations.",
+
+      "SectionImages": "Default Image",
+      "SectionAudio": "Audio",
+      "SectionTiming": "Timing",
+
+      "GMAvatar": "NPC Default Image",
+      "GMAvatarHint": "Full-screen image used for NPC critical successes when the actor has no override.",
+
+      "PCCriticalSFX": "PC Critical SFX",
+      "PCCriticalSFXHint": "Audio file played when a PC scores a Critical Success.",
+      "GMCriticalSFX": "NPC Critical SFX",
+      "GMCriticalSFXHint": "Audio file played when an NPC scores a Critical Success.",
+
+      "CinematicDuration": "Cinematic Duration (ms)",
+      "CinematicDurationHint": "Total length of the snap-in / hold / snap-out animation. 600–3000ms.",
+
+      "TriggerMode": "Trigger Mode",
+      "TriggerModeHint": "Choose what counts as a critical: the PF2e degree-of-success outcome, or any natural 20 on the d20.",
+      "TriggerModeChoicePF2e": "PF2e Degree of Success (Critical Success)",
+      "TriggerModeChoiceNat20": "Natural 20 Only (any d20 showing 20)",
+
+      "EnableSkillCrits": "Enable Skill Check criticals",
+      "EnableSkillCritsHint": "Trigger cinematics on critical Skill Checks.",
+      "EnablePerceptionCrits": "Enable Perception criticals",
+      "EnablePerceptionCritsHint": "Trigger cinematics on critical Perception checks.",
+
+      "AllowPlayerOptOut": "Allow players to disable cinematics",
+      "AllowPlayerOptOutHint": "When ON, each player can disable cinematics in their client settings.",
+
+      "ShowCinematics": "Show critical cinematics",
+      "ShowCinematicsHint": "Display cinematic critical animations on this client.",
+      "AudioEnabled": "Cinematic audio",
+      "AudioEnabledHint": "Play critical SFX on this client.",
+      "Volume": "Cinematic volume",
+      "VolumeHint": "Volume for critical SFX (0–100%)."
+    },
+
+    "Actor": {
+      "HeaderButton": "Critical Cinematic",
+      "ModalTitlePC": "Critical Cinematic — {name}",
+      "ModalTitleNPC": "Critical Cinematic — {name} (NPC)",
+
+      "EnableForNPC": "Enable cinematic for this NPC",
+      "EnableForNPCHint": "GM-only. When OFF, this NPC never triggers a cinematic.",
+
+      "PortraitOverride": "Image Override",
+      "PortraitOverrideHint": "Image shown full-screen for this actor's critical. Leave empty to use actor art (PC) or the NPC Default Image (NPC).",
+
+      "TestButton": "Test Cinematic",
+      "TestButtonHint": "Play this cinematic locally. Not broadcast to other clients.",
+
+      "Save": "Save",
+      "Cancel": "Cancel"
+    },
+
+    "Notifications": {
+      "NonPF2eWarning": "GLUniverse Critical is configured for the PF2e system. Cinematics are disabled.",
+      "PortraitLoadFailed": "Could not load image for cinematic.",
+      "SFXLoadFailed": "Could not load critical SFX audio file."
+    }
+  }
+}
