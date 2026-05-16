@@ -24,6 +24,8 @@ type RollLike = { dice?: DieTerm[] };
 
 type AnyChatMessage = {
   id?: string;
+  author?: { id?: string };
+  user?: string | { id?: string };
   speaker?: { actor?: string };
   whisper?: string[];
   blind?: boolean;
@@ -116,7 +118,16 @@ export function registerDetector(): void {
   });
 }
 
+function messageAuthorId(message: AnyChatMessage): string | undefined {
+  return (
+    message.author?.id ??
+    (typeof message.user === 'string' ? message.user : message.user?.id)
+  );
+}
+
 function processMessage(message: AnyChatMessage): void {
+  if (messageAuthorId(message) !== game.user.id) return;
+
   const input = buildInputFromMessage(message);
   const result = detect(input);
   if (!result.fire) {

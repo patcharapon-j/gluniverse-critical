@@ -5,8 +5,8 @@ const SCHEMA_VERSION = 2;
 const DURATION_MIN_MS = 600;
 const DURATION_MAX_MS = 3e3;
 const DURATION_DEFAULT_MS = 1e3;
-const EASE_IN_FRACTION = 0.12;
-const EASE_OUT_FRACTION = 0.18;
+const EASE_IN_FRACTION = 0.15;
+const EASE_OUT_FRACTION = 0.2;
 const QUEUE_MAX = 3;
 const DEDUPE_WINDOW_MS = 500;
 const OVERLAY_Z_INDEX = 99999;
@@ -255,9 +255,9 @@ function readGlobalInterfaceVolume() {
   return 1;
 }
 const FALLBACK_IMAGE$1 = "icons/svg/mystery-man.svg";
-const BG_FADE_IN_FRACTION = 0.22;
+const BG_FADE_IN_FRACTION = 0.2;
 const BG_FADE_OUT_FRACTION = 0.28;
-const BG_PEAK_ALPHA = 0.88;
+const BG_PEAK_ALPHA = 0.85;
 async function runCinematic(event) {
   const app2 = getOverlayApp();
   if (!app2) {
@@ -290,12 +290,12 @@ async function runCinematic(event) {
   const mask = new PIXI.Graphics();
   stage.addChild(mask);
   sprite.mask = mask;
-  const drawMask = (widthFrac) => {
-    const clamped = Math.max(0, Math.min(1, widthFrac));
-    const w = fitW * clamped;
-    const x = sw * 0.5 - w * 0.5;
-    const y = sh * 0.5 - fitH * 0.5;
-    mask.clear().beginFill(16777215, 1).drawRect(x, y, w, fitH).endFill();
+  const drawMask = (frac) => {
+    const clamped = Math.max(0, Math.min(1, frac));
+    const h = fitH * clamped;
+    const x = sw * 0.5 - fitW * 0.5;
+    const y = sh * 0.5 - h * 0.5;
+    mask.clear().beginFill(16777215, 1).drawRect(x, y, fitW, h).endFill();
   };
   drawMask(0);
   playSfx(event.isPC ? "pc" : "gm");
@@ -325,8 +325,8 @@ async function runCinematic(event) {
   stage.destroy?.({ children: true });
   app2.stop();
 }
-const HOLD_DRIFT = 0.05;
-const OUT_SCALE_BOOST = 0.12;
+const HOLD_DRIFT = 0.04;
+const OUT_SCALE_BOOST = 0.16;
 function animate(t) {
   let bgAlpha;
   if (t < BG_FADE_IN_FRACTION) {
@@ -343,8 +343,8 @@ function animate(t) {
   if (t < EASE_IN_FRACTION) {
     const k = t / EASE_IN_FRACTION;
     imgAlpha = easeOutCubic(k);
-    scaleMul = 0.94 + 0.06 * easeOutCubic(k);
-    wipe = easeOutExpo(k);
+    scaleMul = 0.92 + 0.08 * easeOutQuint(k);
+    wipe = easeOutQuart(k);
   } else if (t > 1 - EASE_OUT_FRACTION) {
     const k = (t - (1 - EASE_OUT_FRACTION)) / EASE_OUT_FRACTION;
     imgAlpha = 1 - easeInCubic(k);
@@ -352,7 +352,7 @@ function animate(t) {
   } else {
     const holdLen = 1 - EASE_IN_FRACTION - EASE_OUT_FRACTION;
     const k = (t - EASE_IN_FRACTION) / holdLen;
-    scaleMul = 1 + HOLD_DRIFT * k;
+    scaleMul = 1 + HOLD_DRIFT * easeInOutSine(k);
   }
   return { bgAlpha, imgAlpha, scaleMul, wipe };
 }
@@ -362,8 +362,14 @@ function easeOutCubic(t) {
 function easeInCubic(t) {
   return t ** 3;
 }
-function easeOutExpo(t) {
-  return t >= 1 ? 1 : 1 - 2 ** (-10 * t);
+function easeOutQuart(t) {
+  return 1 - (1 - t) ** 4;
+}
+function easeOutQuint(t) {
+  return 1 - (1 - t) ** 5;
+}
+function easeInOutSine(t) {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 function screenSize() {
   return { sw: window.innerWidth, sh: window.innerHeight };
@@ -568,7 +574,11 @@ function registerDetector() {
     if (!dsnActive) processMessage(message);
   });
 }
+function messageAuthorId(message) {
+  return message.author?.id ?? (typeof message.user === "string" ? message.user : message.user?.id);
+}
 function processMessage(message) {
+  if (messageAuthorId(message) !== game.user.id) return;
   const input = buildInputFromMessage(message);
   const result = detect(input);
   if (!result.fire) {
@@ -637,7 +647,7 @@ async function runMigrations() {
 }
 function createPublicAPI() {
   return {
-    version: "1.0.0",
+    version: "1.1.0",
     async triggerLocal(actorId) {
       const actor = game.actors.get(actorId);
       const isPC = actor?.hasPlayerOwner ?? true;

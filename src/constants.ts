@@ -8,8 +8,8 @@ export const DURATION_MIN_MS = 600;
 export const DURATION_MAX_MS = 3000;
 export const DURATION_DEFAULT_MS = 1000;
 
-export const EASE_IN_FRACTION = 0.12;
-export const EASE_OUT_FRACTION = 0.18;
+export const EASE_IN_FRACTION = 0.15;
+export const EASE_OUT_FRACTION = 0.20;
 
 export const QUEUE_MAX = 3;
 export const DEDUPE_WINDOW_MS = 500;

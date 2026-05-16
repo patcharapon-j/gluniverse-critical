@@ -47,9 +47,9 @@ interface PixiContainer {
 
 const FALLBACK_IMAGE = 'icons/svg/mystery-man.svg';
 
-const BG_FADE_IN_FRACTION = 0.22;
+const BG_FADE_IN_FRACTION = 0.20;
 const BG_FADE_OUT_FRACTION = 0.28;
-const BG_PEAK_ALPHA = 0.88;
+const BG_PEAK_ALPHA = 0.85;
 
 export async function runCinematic(event: CritEvent): Promise<void> {
   const app = getOverlayApp();
@@ -91,12 +91,12 @@ export async function runCinematic(event: CritEvent): Promise<void> {
   stage.addChild(mask);
   sprite.mask = mask;
 
-  const drawMask = (widthFrac: number): void => {
-    const clamped = Math.max(0, Math.min(1, widthFrac));
-    const w = fitW * clamped;
-    const x = sw * 0.5 - w * 0.5;
-    const y = sh * 0.5 - fitH * 0.5;
-    mask.clear().beginFill(0xffffff, 1).drawRect(x, y, w, fitH).endFill();
+  const drawMask = (frac: number): void => {
+    const clamped = Math.max(0, Math.min(1, frac));
+    const h = fitH * clamped;
+    const x = sw * 0.5 - fitW * 0.5;
+    const y = sh * 0.5 - h * 0.5;
+    mask.clear().beginFill(0xffffff, 1).drawRect(x, y, fitW, h).endFill();
   };
   drawMask(0);
 
@@ -138,8 +138,8 @@ interface Frame {
   wipe: number;
 }
 
-const HOLD_DRIFT = 0.05;
-const OUT_SCALE_BOOST = 0.12;
+const HOLD_DRIFT = 0.04;
+const OUT_SCALE_BOOST = 0.16;
 
 function animate(t: number): Frame {
   let bgAlpha: number;
@@ -158,8 +158,8 @@ function animate(t: number): Frame {
   if (t < EASE_IN_FRACTION) {
     const k = t / EASE_IN_FRACTION;
     imgAlpha = easeOutCubic(k);
-    scaleMul = 0.94 + 0.06 * easeOutCubic(k);
-    wipe = easeOutExpo(k);
+    scaleMul = 0.92 + 0.08 * easeOutQuint(k);
+    wipe = easeOutQuart(k);
   } else if (t > 1 - EASE_OUT_FRACTION) {
     const k = (t - (1 - EASE_OUT_FRACTION)) / EASE_OUT_FRACTION;
     imgAlpha = 1 - easeInCubic(k);
@@ -167,7 +167,7 @@ function animate(t: number): Frame {
   } else {
     const holdLen = 1 - EASE_IN_FRACTION - EASE_OUT_FRACTION;
     const k = (t - EASE_IN_FRACTION) / holdLen;
-    scaleMul = 1 + HOLD_DRIFT * k;
+    scaleMul = 1 + HOLD_DRIFT * easeInOutSine(k);
   }
 
   return { bgAlpha, imgAlpha, scaleMul, wipe };
@@ -179,8 +179,14 @@ function easeOutCubic(t: number): number {
 function easeInCubic(t: number): number {
   return t ** 3;
 }
-function easeOutExpo(t: number): number {
-  return t >= 1 ? 1 : 1 - 2 ** (-10 * t);
+function easeOutQuart(t: number): number {
+  return 1 - (1 - t) ** 4;
+}
+function easeOutQuint(t: number): number {
+  return 1 - (1 - t) ** 5;
+}
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
 function screenSize(): { sw: number; sh: number } {

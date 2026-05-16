@@ -9,7 +9,7 @@ declare const game: {
 
 export function createPublicAPI(): PublicAPI {
   return {
-    version: '1.0.0',
+    version: '1.1.0',
     async triggerLocal(actorId: string): Promise<void> {
       const actor = game.actors.get(actorId);
       const isPC = actor?.hasPlayerOwner ?? true;
