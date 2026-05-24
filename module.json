@@ -2,18 +2,28 @@
   "id": "gluniverse-critical",
   "title": "GLUniverse Critical",
   "description": "JRPG-inspired fullscreen cinematic animations on PF2e Critical Successes. Inspired by Persona 5 Royal, Persona 3 Reloaded, Final Fantasy, and Genshin Impact.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "compatibility": {
     "minimum": "13",
     "verified": "13"
   },
   "authors": [
-    { "name": "patch" }
+    {
+      "name": "patch"
+    }
   ],
-  "esmodules": ["module.js"],
-  "styles": ["styles/module.css"],
+  "esmodules": [
+    "module.js"
+  ],
+  "styles": [
+    "styles/module.css"
+  ],
   "languages": [
-    { "lang": "en", "name": "English", "path": "lang/en.json" }
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
   ],
   "relationships": {
     "systems": [
@@ -30,6 +40,6 @@
   "socket": true,
   "url": "https://github.com/patcharapon-j/gluniverse-critical",
   "manifest": "https://github.com/patcharapon-j/gluniverse-critical/releases/latest/download/module.json",
-  "download": "https://github.com/patcharapon-j/gluniverse-critical/releases/download/v1.1.0/module.zip",
+  "download": "https://github.com/patcharapon-j/gluniverse-critical/releases/download/v1.2.0/module.zip",
   "flags": {}
 }
