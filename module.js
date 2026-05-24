@@ -645,9 +645,9 @@ async function runMigrations() {
     await Promise.all(pending);
   }
 }
-function createPublicAPI() {
+function createPublicAPI(version) {
   return {
-    version: "1.1.0",
+    version,
     async triggerLocal(actorId) {
       const actor = game.actors.get(actorId);
       const isPC = actor?.hasPlayerOwner ?? true;
@@ -763,7 +763,7 @@ Hooks.once("init", () => {
   registerSettings();
   const mod = game.modules.get(MODULE_ID);
   if (mod) {
-    mod.api = createPublicAPI();
+    mod.api = createPublicAPI(mod.version);
   }
 });
 Hooks.once("ready", async () => {
