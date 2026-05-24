@@ -666,6 +666,10 @@ function createPublicAPI(version) {
       await runCinematic(event);
     },
     async triggerBroadcast(actorId) {
+      if (!game.user.isGM) {
+        console.warn(`${MODULE_ID} | triggerBroadcast is GM-only; ignoring call.`);
+        return;
+      }
       const event = buildManualEvent(actorId);
       if (!event) return;
       broadcastCrit(event);

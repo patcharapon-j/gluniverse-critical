@@ -1,11 +1,12 @@
 import { resolveCritEvent } from './cinematic/resolver';
 import { runCinematic } from './cinematic/runner';
+import { MODULE_ID } from './constants';
 import { broadcastCrit } from './sockets/broadcast';
 import type { CritEvent } from './types/module';
 import type { PublicAPI } from './types/module';
 
 declare const game: {
-  user: { id: string };
+  user: { id: string; isGM: boolean };
   actors: { get(id: string): { hasPlayerOwner?: boolean } | undefined };
 };
 
@@ -29,6 +30,10 @@ export function createPublicAPI(version: string): PublicAPI {
       await runCinematic(event);
     },
     async triggerBroadcast(actorId: string): Promise<void> {
+      if (!game.user.isGM) {
+        console.warn(`${MODULE_ID} | triggerBroadcast is GM-only; ignoring call.`);
+        return;
+      }
       const event = buildManualEvent(actorId);
       if (!event) return;
       broadcastCrit(event);
