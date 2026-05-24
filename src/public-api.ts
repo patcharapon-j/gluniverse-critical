@@ -20,9 +20,9 @@ function buildManualEvent(actorId: string): CritEvent | null {
   });
 }
 
-export function createPublicAPI(): PublicAPI {
+export function createPublicAPI(version: string): PublicAPI {
   return {
-    version: '1.2.0',
+    version,
     async triggerLocal(actorId: string): Promise<void> {
       const event = buildManualEvent(actorId);
       if (!event) return;

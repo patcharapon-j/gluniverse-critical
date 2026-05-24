@@ -657,9 +657,9 @@ function buildManualEvent(actorId) {
     originUserId: game.user.id
   });
 }
-function createPublicAPI() {
+function createPublicAPI(version) {
   return {
-    version: "1.2.0",
+    version,
     async triggerLocal(actorId) {
       const event = buildManualEvent(actorId);
       if (!event) return;
@@ -778,7 +778,7 @@ Hooks.once("init", () => {
   registerSettings();
   const mod = game.modules.get(MODULE_ID);
   if (mod) {
-    mod.api = createPublicAPI();
+    mod.api = createPublicAPI(mod.version);
   }
 });
 Hooks.once("ready", async () => {

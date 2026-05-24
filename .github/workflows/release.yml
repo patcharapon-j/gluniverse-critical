@@ -1,0 +1,93 @@
+name: Release Module
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version increment level'
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Bump version and set release URLs in module.json
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+          REPO: ${{ github.repository }}
+        run: |
+          node --eval '
+            const fs = require("node:fs");
+            const m = JSON.parse(fs.readFileSync("module.json", "utf8"));
+            const [maj, min, pat] = m.version.split(".").map(Number);
+            const bump = process.env.BUMP;
+            const next =
+              bump === "major" ? `${maj + 1}.0.0` :
+              bump === "minor" ? `${maj}.${min + 1}.0` :
+              `${maj}.${min}.${pat + 1}`;
+            const tag = `v${next}`;
+            m.version = next;
+            m.manifest = `https://github.com/${process.env.REPO}/releases/latest/download/module.json`;
+            m.download = `https://github.com/${process.env.REPO}/releases/download/${tag}/module.zip`;
+            fs.writeFileSync("module.json", JSON.stringify(m, null, 2) + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${next}\ntag=${tag}\n`);
+          '
+
+      - name: Create module.zip
+        run: |
+          zip -r module.zip \
+            module.json \
+            module.js \
+            module.js.map \
+            styles \
+            templates \
+            lang \
+            README.md
+
+      - name: Commit version bump and tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add module.json
+          git commit -m "Release ${TAG}"
+          git tag "${TAG}"
+          git push origin HEAD
+          git push origin "${TAG}"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: |
+            module.json
+            module.zip
+          fail_on_unmatched_files: true
