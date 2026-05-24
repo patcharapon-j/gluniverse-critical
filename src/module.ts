@@ -13,7 +13,7 @@ declare const Hooks: {
 };
 declare const game: {
   system: { id: string };
-  modules: Map<string, { api?: unknown; active: boolean }>;
+  modules: Map<string, { api?: unknown; active: boolean; version: string }>;
   user: { isGM: boolean; id: string };
   actors: { get(id: string): unknown };
   settings: unknown;
@@ -32,7 +32,7 @@ Hooks.once('init', () => {
 
   const mod = game.modules.get(MODULE_ID);
   if (mod) {
-    (mod as { api?: unknown }).api = createPublicAPI();
+    (mod as { api?: unknown }).api = createPublicAPI(mod.version);
   }
 });
 
