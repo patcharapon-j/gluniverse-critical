@@ -22,5 +22,6 @@ export interface ActorFlagData {
 
 export interface PublicAPI {
   triggerLocal(actorId: string): Promise<void>;
+  triggerBroadcast(actorId: string): Promise<void>;
   readonly version: string;
 }

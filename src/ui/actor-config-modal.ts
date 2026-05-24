@@ -2,6 +2,7 @@ import { resolveCritEvent } from '../cinematic/resolver';
 import { runCinematic } from '../cinematic/runner';
 import { MODULE_ID } from '../constants';
 import { readActorFlags, writeActorFlags } from '../flags/actor-flags';
+import { broadcastCrit } from '../sockets/broadcast';
 
 type JQueryLike = { find(sel: string): { on(evt: string, fn: () => void): void } };
 
@@ -88,23 +89,27 @@ export class ActorConfigModal extends FormApplication {
   activateListeners(html: JQueryLike): void {
     super.activateListeners(html);
     html.find('.gluc-test-button').on('click', () => {
-      void this.runTest();
+      void this.runTest(false);
+    });
+    html.find('.gluc-broadcast-button').on('click', () => {
+      void this.runTest(true);
     });
   }
 
-  private async runTest(): Promise<void> {
+  private async runTest(broadcast: boolean): Promise<void> {
     const base = this.baseActor;
     const event = resolveCritEvent({
-      messageId: `test-${Date.now()}`,
+      messageId: `${broadcast ? 'manual' : 'test'}-${Date.now()}`,
       actorId: base.id,
       isPC: base.hasPlayerOwner,
       originUserId: game.user.id,
     });
     if (!event) return;
+    if (broadcast) broadcastCrit(event);
     try {
       await runCinematic(event);
     } catch (err) {
-      console.error(`${MODULE_ID} | test cinematic failed:`, err);
+      console.error(`${MODULE_ID} | ${broadcast ? 'broadcast' : 'test'} cinematic failed:`, err);
     }
   }
 

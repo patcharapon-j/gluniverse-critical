@@ -57,6 +57,9 @@
       "TestButton": "Test Cinematic",
       "TestButtonHint": "Play this cinematic locally. Not broadcast to other clients.",
 
+      "BroadcastButton": "Trigger for Everyone",
+      "BroadcastButtonHint": "GM-only. Play this cinematic on every connected client, including yourself.",
+
       "Save": "Save",
       "Cancel": "Cancel"
     },
