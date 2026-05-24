@@ -20,6 +20,9 @@
 
   <footer class="sheet-footer flexrow">
     <button type="button" class="gluc-test-button"><i class="fas fa-play"></i> {{localize "GLUC.Actor.TestButton"}}</button>
+    {{#if isGM}}
+      <button type="button" class="gluc-broadcast-button"><i class="fas fa-broadcast-tower"></i> {{localize "GLUC.Actor.BroadcastButton"}}</button>
+    {{/if}}
     <button type="submit"><i class="far fa-save"></i> {{localize "GLUC.Actor.Save"}}</button>
   </footer>
 </form>

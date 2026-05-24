@@ -43,7 +43,13 @@ export function detect(input: DetectorInput): DetectorResult {
     return { fire: false, reason: 'unsupported-roll-type' };
   }
 
-  if (input.context.outcome !== 'criticalSuccess') {
+  const isCriticalSuccess = input.context.outcome === 'criticalSuccess';
+  // When a roll has no target or DC (e.g. an untargeted attack, ability check, or
+  // saving throw), PF2e never computes a degree of success, so `outcome` is absent.
+  // Fall back to a natural 20 on the d20 so those rolls still fire the cut-in.
+  const isUngradedNat20 = !input.context.outcome && input.nat20Detected;
+
+  if (!isCriticalSuccess && !isUngradedNat20) {
     return { fire: false, reason: 'not-critical-success' };
   }
 
@@ -58,5 +64,5 @@ export function detect(input: DetectorInput): DetectorResult {
     return { fire: false, reason: 'npc-not-enabled' };
   }
 
-  return { fire: true, reason: 'pf2e-critical-success' };
+  return { fire: true, reason: isCriticalSuccess ? 'pf2e-critical-success' : 'nat20' };
 }

@@ -163,6 +163,66 @@ describe('pf2e detector', () => {
     ).toEqual({ fire: false, reason: 'unsupported-roll-type' });
   });
 
+  describe('ungraded nat20 in pf2e mode (no target / no DC)', () => {
+    it('fires on an untargeted attack-roll nat20 with no outcome', () => {
+      expect(detect({ ...base(), context: { type: 'attack-roll' }, nat20Detected: true })).toEqual({
+        fire: true,
+        reason: 'nat20',
+      });
+    });
+
+    it('fires on an untargeted saving-throw nat20 with no outcome', () => {
+      expect(detect({ ...base(), context: { type: 'saving-throw' }, nat20Detected: true })).toEqual(
+        { fire: true, reason: 'nat20' },
+      );
+    });
+
+    it('fires on an ungraded skill-check nat20 when skill crits enabled', () => {
+      expect(
+        detect({
+          ...base(),
+          context: { type: 'skill-check' },
+          nat20Detected: true,
+          skillCritsEnabled: true,
+        }),
+      ).toEqual({ fire: true, reason: 'nat20' });
+    });
+
+    it('does not fire on an ungraded roll without a nat20', () => {
+      expect(detect({ ...base(), context: { type: 'attack-roll' }, nat20Detected: false })).toEqual(
+        { fire: false, reason: 'not-critical-success' },
+      );
+    });
+
+    it('does not fire when a graded success (not crit) has a nat20', () => {
+      expect(
+        detect({
+          ...base(),
+          context: { type: 'attack-roll', outcome: 'success' },
+          nat20Detected: true,
+        }),
+      ).toEqual({ fire: false, reason: 'not-critical-success' });
+    });
+
+    it('still hard-blocks initiative on a nat20 with no outcome', () => {
+      expect(detect({ ...base(), context: { type: 'initiative' }, nat20Detected: true })).toEqual({
+        fire: false,
+        reason: 'damage-or-initiative-blocked',
+      });
+    });
+
+    it('still respects skill-crits-disabled on an ungraded skill nat20', () => {
+      expect(
+        detect({
+          ...base(),
+          context: { type: 'skill-check' },
+          nat20Detected: true,
+          skillCritsEnabled: false,
+        }),
+      ).toEqual({ fire: false, reason: 'skill-crits-disabled' });
+    });
+  });
+
   describe('nat20-only mode', () => {
     it('fires on any nat20 regardless of outcome or roll type', () => {
       expect(

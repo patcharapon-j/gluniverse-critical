@@ -504,7 +504,9 @@ function detect(input) {
   if (!SUPPORTED_ROLL_TYPES.has(type)) {
     return { fire: false, reason: "unsupported-roll-type" };
   }
-  if (input.context.outcome !== "criticalSuccess") {
+  const isCriticalSuccess = input.context.outcome === "criticalSuccess";
+  const isUngradedNat20 = !input.context.outcome && input.nat20Detected;
+  if (!isCriticalSuccess && !isUngradedNat20) {
     return { fire: false, reason: "not-critical-success" };
   }
   if (type === "skill-check" && !input.skillCritsEnabled) {
@@ -516,7 +518,7 @@ function detect(input) {
   if (!input.actorHasPlayerOwner && !input.npcEnabled) {
     return { fire: false, reason: "npc-not-enabled" };
   }
-  return { fire: true, reason: "pf2e-critical-success" };
+  return { fire: true, reason: isCriticalSuccess ? "pf2e-critical-success" : "nat20" };
 }
 function buildInputFromMessage(message) {
   const actorId = message.speaker?.actor;
@@ -645,19 +647,28 @@ async function runMigrations() {
     await Promise.all(pending);
   }
 }
+function buildManualEvent(actorId) {
+  const actor = game.actors.get(actorId);
+  const isPC = actor?.hasPlayerOwner ?? true;
+  return resolveCritEvent({
+    messageId: `manual-${Date.now()}`,
+    actorId,
+    isPC,
+    originUserId: game.user.id
+  });
+}
 function createPublicAPI() {
   return {
-    version: "1.1.0",
+    version: "1.2.0",
     async triggerLocal(actorId) {
-      const actor = game.actors.get(actorId);
-      const isPC = actor?.hasPlayerOwner ?? true;
-      const event = resolveCritEvent({
-        messageId: `manual-${Date.now()}`,
-        actorId,
-        isPC,
-        originUserId: game.user.id
-      });
+      const event = buildManualEvent(actorId);
       if (!event) return;
+      await runCinematic(event);
+    },
+    async triggerBroadcast(actorId) {
+      const event = buildManualEvent(actorId);
+      if (!event) return;
+      broadcastCrit(event);
       await runCinematic(event);
     }
   };
@@ -710,22 +721,26 @@ class ActorConfigModal extends FormApplication {
   activateListeners(html) {
     super.activateListeners(html);
     html.find(".gluc-test-button").on("click", () => {
-      void this.runTest();
+      void this.runTest(false);
+    });
+    html.find(".gluc-broadcast-button").on("click", () => {
+      void this.runTest(true);
     });
   }
-  async runTest() {
+  async runTest(broadcast) {
     const base = this.baseActor;
     const event = resolveCritEvent({
-      messageId: `test-${Date.now()}`,
+      messageId: `${broadcast ? "manual" : "test"}-${Date.now()}`,
       actorId: base.id,
       isPC: base.hasPlayerOwner,
       originUserId: game.user.id
     });
     if (!event) return;
+    if (broadcast) broadcastCrit(event);
     try {
       await runCinematic(event);
     } catch (err) {
-      console.error(`${MODULE_ID} | test cinematic failed:`, err);
+      console.error(`${MODULE_ID} | ${broadcast ? "broadcast" : "test"} cinematic failed:`, err);
     }
   }
   async _updateObject(_event, formData) {
