@@ -564,8 +564,7 @@ function registerDetector() {
     Hooks.on("diceSoNiceRollComplete", (messageId) => {
       lastDiceSoNiceMessageId = messageId;
       lastDiceSoNiceTimestamp = performance.now();
-      const ChatMessage = globalThis.ChatMessage;
-      const message = ChatMessage?.get(messageId);
+      const message = getChatMessageById(messageId);
       if (message) processMessage(message);
     });
   }
@@ -575,6 +574,12 @@ function registerDetector() {
     }
     if (!dsnActive) processMessage(message);
   });
+}
+function getChatMessageById(messageId) {
+  const fromCollection = game.messages?.get(messageId);
+  if (fromCollection) return fromCollection;
+  const ChatMessage = globalThis.ChatMessage;
+  return ChatMessage?.get(messageId);
 }
 function messageAuthorId(message) {
   return message.author?.id ?? (typeof message.user === "string" ? message.user : message.user?.id);

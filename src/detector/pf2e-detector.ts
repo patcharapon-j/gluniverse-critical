@@ -9,12 +9,13 @@ import type { DetectorInput } from './types';
 export { detect } from './detect';
 
 declare const Hooks: {
-  on(name: string, fn: (...args: any[]) => unknown): void;
+  on(name: string, fn: (...args: unknown[]) => unknown): void;
 };
 declare const game: {
   system: { id: string };
   user: { id: string; isGM: boolean };
   actors: { get(id: string): unknown };
+  messages?: { get(id: string): unknown };
   settings: { get(scope: string, key: string): unknown };
 };
 
@@ -95,12 +96,7 @@ export function registerDetector(): void {
     Hooks.on('diceSoNiceRollComplete', (messageId: string) => {
       lastDiceSoNiceMessageId = messageId;
       lastDiceSoNiceTimestamp = performance.now();
-      const ChatMessage = (
-        globalThis as unknown as {
-          ChatMessage?: { get(id: string): AnyChatMessage | undefined };
-        }
-      ).ChatMessage;
-      const message = ChatMessage?.get(messageId);
+      const message = getChatMessageById(messageId);
       if (message) processMessage(message);
     });
   }
@@ -118,11 +114,20 @@ export function registerDetector(): void {
   });
 }
 
+export function getChatMessageById(messageId: string): AnyChatMessage | undefined {
+  const fromCollection = game.messages?.get(messageId) as AnyChatMessage | undefined;
+  if (fromCollection) return fromCollection;
+
+  const ChatMessage = (
+    globalThis as unknown as {
+      ChatMessage?: { get(id: string): AnyChatMessage | undefined };
+    }
+  ).ChatMessage;
+  return ChatMessage?.get(messageId);
+}
+
 function messageAuthorId(message: AnyChatMessage): string | undefined {
-  return (
-    message.author?.id ??
-    (typeof message.user === 'string' ? message.user : message.user?.id)
-  );
+  return message.author?.id ?? (typeof message.user === 'string' ? message.user : message.user?.id);
 }
 
 function processMessage(message: AnyChatMessage): void {
