@@ -40,9 +40,21 @@ Hooks.once('ready', async () => {
   if (game.system.id !== PF2E_SYSTEM_ID) return;
 
   console.log(`${MODULE_ID} | ready`);
-  await runMigrations();
+
+  // Register listeners first so a migration failure can never prevent crit
+  // detection or socket broadcast from working on any client.
   mountOverlay();
   registerSockets();
   registerDetector();
   registerActorSheetHooks();
+
+  // World-actor flag migrations write world-scoped data, which only a GM may
+  // do; players would throw on setFlag and abort the rest of this hook.
+  if (game.user.isGM) {
+    try {
+      await runMigrations();
+    } catch (err) {
+      console.error(`${MODULE_ID} | actor flag migration failed:`, err);
+    }
+  }
 });

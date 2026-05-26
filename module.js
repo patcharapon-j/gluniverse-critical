@@ -788,10 +788,16 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   if (game.system.id !== PF2E_SYSTEM_ID$1) return;
   console.log(`${MODULE_ID} | ready`);
-  await runMigrations();
   mountOverlay();
   registerSockets();
   registerDetector();
   registerActorSheetHooks();
+  if (game.user.isGM) {
+    try {
+      await runMigrations();
+    } catch (err) {
+      console.error(`${MODULE_ID} | actor flag migration failed:`, err);
+    }
+  }
 });
 //# sourceMappingURL=module.js.map
