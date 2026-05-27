@@ -1,24 +1,27 @@
 import { DURATION_MAX_MS, DURATION_MIN_MS, MODULE_ID, SETTINGS } from '../constants';
 import { getSetting, setSetting } from './settings';
 
-type FormApplicationOptions = {
+interface AppV2Options {
   id?: string;
-  title?: string;
-  template?: string;
-  width?: number;
-  height?: number | 'auto';
-  closeOnSubmit?: boolean;
-  submitOnChange?: boolean;
-};
+  tag?: string;
+  classes?: string[];
+  window?: { title?: string; contentClasses?: string[]; icon?: string | false };
+  position?: { width?: number; height?: number | 'auto' };
+  form?: { handler?: unknown; closeOnSubmit?: boolean; submitOnChange?: boolean };
+}
 
-declare const FormApplication: {
-  new (
-    object?: unknown,
-    options?: FormApplicationOptions,
-  ): {
-    render(force?: boolean): unknown;
+interface AppV2Instance {
+  render(force?: boolean | object, options?: object): Promise<unknown>;
+  options: AppV2Options;
+}
+
+declare const foundry: {
+  applications: {
+    api: {
+      ApplicationV2: new (options?: AppV2Options) => AppV2Instance;
+      HandlebarsApplicationMixin: <T extends abstract new (...args: any[]) => any>(base: T) => T;
+    };
   };
-  defaultOptions: FormApplicationOptions;
 };
 
 interface GMConfigData {
@@ -28,25 +31,33 @@ interface GMConfigData {
   cinematicDuration: number;
 }
 
-export class GMConfigMenu extends FormApplication {
-  static get defaultOptions(): FormApplicationOptions {
-    return {
-      ...FormApplication.defaultOptions,
-      id: `${MODULE_ID}-gm-config`,
-      title: 'GLUniverse Critical — GM Configuration',
-      template: `modules/${MODULE_ID}/templates/gm-config.html`,
-      width: 520,
-      height: 'auto',
+const Base = foundry.applications.api.HandlebarsApplicationMixin(
+  foundry.applications.api.ApplicationV2,
+);
+
+export class GMConfigMenu extends Base {
+  static DEFAULT_OPTIONS: AppV2Options = {
+    id: `${MODULE_ID}-gm-config`,
+    tag: 'form',
+    classes: ['gluc-gm-config'],
+    window: { title: 'GLUC.Settings.MenuName', icon: 'fa-solid fa-cog' },
+    position: { width: 520, height: 'auto' },
+    form: {
+      handler: GMConfigMenu.#onSubmit,
       closeOnSubmit: true,
       submitOnChange: false,
-    };
-  }
+    },
+  };
 
-  getData(): {
+  static PARTS = {
+    form: { template: `modules/${MODULE_ID}/templates/gm-config.html` },
+  };
+
+  async _prepareContext(): Promise<{
     data: GMConfigData;
     durationMin: number;
     durationMax: number;
-  } {
+  }> {
     return {
       data: {
         gmAvatar: getSetting<string>(SETTINGS.GM_AVATAR),
@@ -59,12 +70,17 @@ export class GMConfigMenu extends FormApplication {
     };
   }
 
-  async _updateObject(_event: Event, formData: Record<string, unknown>): Promise<void> {
+  static async #onSubmit(
+    _event: Event,
+    _form: HTMLFormElement,
+    formData: { object: Record<string, unknown> },
+  ): Promise<void> {
+    const data = formData.object;
     await Promise.all([
-      setSetting(SETTINGS.GM_AVATAR, String(formData.gmAvatar ?? '')),
-      setSetting(SETTINGS.PC_CRITICAL_SFX, String(formData.pcCriticalSfx ?? '')),
-      setSetting(SETTINGS.GM_CRITICAL_SFX, String(formData.gmCriticalSfx ?? '')),
-      setSetting(SETTINGS.CINEMATIC_DURATION, Number(formData.cinematicDuration)),
+      setSetting(SETTINGS.GM_AVATAR, String(data.gmAvatar ?? '')),
+      setSetting(SETTINGS.PC_CRITICAL_SFX, String(data.pcCriticalSfx ?? '')),
+      setSetting(SETTINGS.GM_CRITICAL_SFX, String(data.gmCriticalSfx ?? '')),
+      setSetting(SETTINGS.CINEMATIC_DURATION, Number(data.cinematicDuration)),
     ]);
   }
 }

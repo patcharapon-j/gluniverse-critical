@@ -1,6 +1,6 @@
 # GLUniverse Critical
 
-JRPG-inspired fullscreen critical-hit cinematics for **Foundry VTT v13** + the **Pathfinder 2e** system. Inspired by Persona 5 Royal, Persona 3 Reloaded, Final Fantasy, and Genshin Impact.
+JRPG-inspired fullscreen critical-hit cinematics for **Foundry VTT v13–v14** + the **Pathfinder 2e** system. Inspired by Persona 5 Royal, Persona 3 Reloaded, Final Fantasy, and Genshin Impact.
 
 When a critical fires, the screen dims, an aspect-fit banner image of the actor sweeps in with a horizontal mask wipe + opacity, holds with a slow zoom, then scales up and fades out. The whole thing is roughly a second.
 
@@ -14,7 +14,7 @@ https://github.com/patcharapon-j/gluniverse-critical/releases/latest/download/mo
 
 This URL always resolves to the latest release, so Foundry's built-in update check will keep you current.
 
-**Requires:** Foundry VTT v13, PF2e system v6.0.0+ (verified on v7).
+**Requires:** Foundry VTT v13 or v14, PF2e system v6.0.0+ (verified on v7).
 
 ## Features
 

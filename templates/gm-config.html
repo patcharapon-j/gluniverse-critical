@@ -1,4 +1,4 @@
-<form class="gluc-gm-config" autocomplete="off">
+<div class="gluc-gm-config" autocomplete="off">
   <header>
     <h2>{{localize "GLUC.Settings.MenuName"}}</h2>
     <p class="notes">{{localize "GLUC.Settings.MenuHint"}}</p>
@@ -9,10 +9,7 @@
     <div class="form-group">
       <label>{{localize "GLUC.Settings.GMAvatar"}}</label>
       <div class="form-fields">
-        <input type="text" name="gmAvatar" value="{{data.gmAvatar}}" placeholder="path/to/image.webp" />
-        <button type="button" class="file-picker" data-type="imagevideo" data-target="gmAvatar">
-          <i class="fas fa-file-import"></i>
-        </button>
+        <file-picker type="imagevideo" name="gmAvatar" value="{{data.gmAvatar}}" placeholder="path/to/image.webp"></file-picker>
       </div>
       <p class="notes">{{localize "GLUC.Settings.GMAvatarHint"}}</p>
     </div>
@@ -23,20 +20,14 @@
     <div class="form-group">
       <label>{{localize "GLUC.Settings.PCCriticalSFX"}}</label>
       <div class="form-fields">
-        <input type="text" name="pcCriticalSfx" value="{{data.pcCriticalSfx}}" placeholder="path/to/sound.ogg" />
-        <button type="button" class="file-picker" data-type="audio" data-target="pcCriticalSfx">
-          <i class="fas fa-file-import"></i>
-        </button>
+        <file-picker type="audio" name="pcCriticalSfx" value="{{data.pcCriticalSfx}}" placeholder="path/to/sound.ogg"></file-picker>
       </div>
       <p class="notes">{{localize "GLUC.Settings.PCCriticalSFXHint"}}</p>
     </div>
     <div class="form-group">
       <label>{{localize "GLUC.Settings.GMCriticalSFX"}}</label>
       <div class="form-fields">
-        <input type="text" name="gmCriticalSfx" value="{{data.gmCriticalSfx}}" placeholder="path/to/sound.ogg" />
-        <button type="button" class="file-picker" data-type="audio" data-target="gmCriticalSfx">
-          <i class="fas fa-file-import"></i>
-        </button>
+        <file-picker type="audio" name="gmCriticalSfx" value="{{data.gmCriticalSfx}}" placeholder="path/to/sound.ogg"></file-picker>
       </div>
       <p class="notes">{{localize "GLUC.Settings.GMCriticalSFXHint"}}</p>
     </div>
@@ -55,4 +46,4 @@
   <footer class="sheet-footer flexrow">
     <button type="submit"><i class="far fa-save"></i> {{localize "GLUC.Actor.Save"}}</button>
   </footer>
-</form>
+</div>

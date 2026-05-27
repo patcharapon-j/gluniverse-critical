@@ -4,19 +4,29 @@ import { MODULE_ID } from '../constants';
 import { readActorFlags, writeActorFlags } from '../flags/actor-flags';
 import { broadcastCrit } from '../sockets/broadcast';
 
-type JQueryLike = { find(sel: string): { on(evt: string, fn: () => void): void } };
+interface AppV2Options {
+  id?: string;
+  tag?: string;
+  classes?: string[];
+  window?: { title?: string; contentClasses?: string[]; icon?: string | false };
+  position?: { width?: number; height?: number | 'auto' };
+  form?: { handler?: unknown; closeOnSubmit?: boolean; submitOnChange?: boolean };
+  actions?: Record<string, unknown>;
+}
 
-declare const FormApplication: {
-  new (
-    object: unknown,
-    options?: object,
-  ): {
-    render(force?: boolean): unknown;
-    activateListeners(html: JQueryLike): void;
-    object: unknown;
-    element: HTMLElement[] | { find(sel: string): HTMLElement[] };
+interface AppV2Instance {
+  render(force?: boolean | object, options?: object): Promise<unknown>;
+  readonly element: HTMLElement;
+  options: AppV2Options;
+}
+
+declare const foundry: {
+  applications: {
+    api: {
+      ApplicationV2: new (options?: AppV2Options) => AppV2Instance;
+      HandlebarsApplicationMixin: <T extends abstract new (...args: any[]) => any>(base: T) => T;
+    };
   };
-  defaultOptions: object;
 };
 
 declare const game: {
@@ -35,25 +45,41 @@ type AnyActor = {
   unsetFlag(scope: string, key: string): Promise<unknown>;
 };
 
-export class ActorConfigModal extends FormApplication {
-  static get defaultOptions(): object {
-    return {
-      ...FormApplication.defaultOptions,
-      id: `${MODULE_ID}-actor-config`,
-      template: `modules/${MODULE_ID}/templates/actor-config.html`,
-      width: 480,
-      height: 'auto',
+const Base = foundry.applications.api.HandlebarsApplicationMixin(
+  foundry.applications.api.ApplicationV2,
+);
+
+export class ActorConfigModal extends Base {
+  #actor: AnyActor;
+
+  static DEFAULT_OPTIONS: AppV2Options = {
+    id: `${MODULE_ID}-actor-config`,
+    tag: 'form',
+    classes: ['gluc-actor-config'],
+    window: { title: 'GLUC.Actor.HeaderButton', icon: 'fa-solid fa-bolt' },
+    position: { width: 480, height: 'auto' },
+    form: {
+      handler: ActorConfigModal.#onSubmit,
       closeOnSubmit: true,
       submitOnChange: false,
-    };
-  }
+    },
+    actions: {
+      test: ActorConfigModal.#onTest,
+      broadcast: ActorConfigModal.#onBroadcast,
+    },
+  };
 
-  constructor(actor: AnyActor, options: object = {}) {
-    super(actor, options);
+  static PARTS = {
+    form: { template: `modules/${MODULE_ID}/templates/actor-config.html` },
+  };
+
+  constructor(actor: AnyActor, options: AppV2Options = {}) {
+    super(options);
+    this.#actor = actor;
   }
 
   get actor(): AnyActor {
-    return this.object as AnyActor;
+    return this.#actor;
   }
 
   /**
@@ -62,20 +88,20 @@ export class ActorConfigModal extends FormApplication {
    * are invisible to the detector, which resolves speakers via
    * `game.actors.get(speaker.actor)` (always the base).
    */
-  private get baseActor(): AnyActor {
-    const a = this.actor;
+  get #baseActor(): AnyActor {
+    const a = this.#actor;
     return game.actors.get(a.id) ?? a;
   }
 
   get title(): string {
-    const isNPC = !this.actor.hasPlayerOwner;
+    const isNPC = !this.#actor.hasPlayerOwner;
     const key = isNPC ? 'GLUC.Actor.ModalTitleNPC' : 'GLUC.Actor.ModalTitlePC';
-    return game.i18n.format(key, { name: this.actor.name ?? 'Actor' });
+    return game.i18n.format(key, { name: this.#actor.name ?? 'Actor' });
   }
 
-  getData(): object {
-    const flags = readActorFlags(this.baseActor);
-    const isNPC = !this.actor.hasPlayerOwner;
+  async _prepareContext(): Promise<object> {
+    const flags = readActorFlags(this.#baseActor);
+    const isNPC = !this.#actor.hasPlayerOwner;
     return {
       isNPC,
       isGM: game.user.isGM,
@@ -86,18 +112,35 @@ export class ActorConfigModal extends FormApplication {
     };
   }
 
-  activateListeners(html: JQueryLike): void {
-    super.activateListeners(html);
-    html.find('.gluc-test-button').on('click', () => {
-      void this.runTest(false);
-    });
-    html.find('.gluc-broadcast-button').on('click', () => {
-      void this.runTest(true);
+  static async #onSubmit(
+    this: ActorConfigModal,
+    _event: Event,
+    _form: HTMLFormElement,
+    formData: { object: Record<string, unknown> },
+  ): Promise<void> {
+    // biome-ignore lint/complexity/noThisInStatic: ApplicationV2 binds `this` to the instance when invoking form/action handlers.
+    const base = this.#baseActor;
+    const isNPC = !base.hasPlayerOwner;
+    const data = formData.object;
+    const enabled = isNPC ? Boolean(data.enabled) : true;
+    await writeActorFlags(base, {
+      enabled,
+      portraitOverride: String(data.portraitOverride ?? '') || null,
     });
   }
 
-  private async runTest(broadcast: boolean): Promise<void> {
-    const base = this.baseActor;
+  static #onTest(this: ActorConfigModal): void {
+    // biome-ignore lint/complexity/noThisInStatic: ApplicationV2 binds `this` to the instance when invoking form/action handlers.
+    void this.#runTest(false);
+  }
+
+  static #onBroadcast(this: ActorConfigModal): void {
+    // biome-ignore lint/complexity/noThisInStatic: ApplicationV2 binds `this` to the instance when invoking form/action handlers.
+    void this.#runTest(true);
+  }
+
+  async #runTest(broadcast: boolean): Promise<void> {
+    const base = this.#baseActor;
     const event = resolveCritEvent({
       messageId: `${broadcast ? 'manual' : 'test'}-${Date.now()}`,
       actorId: base.id,
@@ -111,15 +154,5 @@ export class ActorConfigModal extends FormApplication {
     } catch (err) {
       console.error(`${MODULE_ID} | ${broadcast ? 'broadcast' : 'test'} cinematic failed:`, err);
     }
-  }
-
-  async _updateObject(_event: Event, formData: Record<string, unknown>): Promise<void> {
-    const base = this.baseActor;
-    const isNPC = !base.hasPlayerOwner;
-    const enabled = isNPC ? Boolean(formData.enabled) : true;
-    await writeActorFlags(base, {
-      enabled,
-      portraitOverride: String(formData.portraitOverride ?? '') || null,
-    });
   }
 }
