@@ -22,6 +22,11 @@
       "CinematicDuration": "Cinematic Duration (ms)",
       "CinematicDurationHint": "Total length of the snap-in / hold / snap-out animation. 600–3000ms.",
 
+      "AnimationMode": "Animation Style",
+      "AnimationModeHint": "Visual style for the critical cut-in. Standard slides and wipes the portrait in; Break fades the portrait in then shatters it like glass toward the viewer.",
+      "AnimationModeChoiceStandard": "Standard (slide / wipe)",
+      "AnimationModeChoiceBreak": "Break (glass shatter)",
+
       "TriggerMode": "Trigger Mode",
       "TriggerModeHint": "Choose what counts as a critical: the PF2e degree-of-success outcome, or any natural 20 on the d20.",
       "TriggerModeChoicePF2e": "PF2e Degree of Success (Critical Success)",

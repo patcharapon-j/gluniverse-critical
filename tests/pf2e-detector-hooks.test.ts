@@ -80,6 +80,7 @@ describe('pf2e detector hooks', () => {
       isPC: true,
       imagePath: 'actor.png',
       durationMs: 1000,
+      mode: 'standard',
       startTimestamp: 1,
       originUserId: 'player-1',
     } satisfies CritEvent);

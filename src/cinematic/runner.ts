@@ -1,49 +1,14 @@
 import { playSfx } from '../audio/sfx-player';
-import { EASE_IN_FRACTION, EASE_OUT_FRACTION, MODULE_ID } from '../constants';
+import {
+  ANIMATION_MODES,
+  BREAK_FADE_IN_FRACTION,
+  BREAK_HOLD_FRACTION,
+  EASE_IN_FRACTION,
+  EASE_OUT_FRACTION,
+  MODULE_ID,
+} from '../constants';
 import type { CritEvent } from '../types/module';
-import { getOverlayApp } from './overlay-app';
-
-declare const PIXI: {
-  Container: new () => PixiContainer;
-  Sprite: new (texture: unknown) => PixiSprite;
-  Graphics: new () => PixiGraphics;
-  Texture: { from(src: string): PixiTexture };
-};
-declare const loadTexture: (
-  src: string,
-  options?: { fallback?: string },
-) => Promise<PixiTexture | null>;
-
-interface PixiTexture {
-  width?: number;
-  height?: number;
-  baseTexture?: { realWidth?: number; realHeight?: number; valid?: boolean };
-  valid?: boolean;
-}
-interface PixiSprite {
-  texture: PixiTexture;
-  anchor: { set(x: number, y?: number): void };
-  position: { set(x: number, y: number): void };
-  scale: { set(x: number, y?: number): void };
-  alpha: number;
-  mask: unknown | null;
-  width?: number;
-  height?: number;
-  destroy?: (options?: object) => void;
-}
-interface PixiGraphics {
-  clear(): PixiGraphics;
-  beginFill(color: number, alpha?: number): PixiGraphics;
-  drawRect(x: number, y: number, w: number, h: number): PixiGraphics;
-  endFill(): PixiGraphics;
-  alpha: number;
-  destroy?: (options?: object) => void;
-}
-interface PixiContainer {
-  addChild(child: unknown): unknown;
-  removeChildren(): unknown[];
-  destroy?: (options?: object) => void;
-}
+import { type DrawFrame, getRenderer } from './webgl/renderer';
 
 const FALLBACK_IMAGE = 'icons/svg/mystery-man.svg';
 
@@ -52,106 +17,58 @@ const BG_FADE_OUT_FRACTION = 0.28;
 const BG_PEAK_ALPHA = 0.85;
 
 export async function runCinematic(event: CritEvent): Promise<void> {
-  const app = getOverlayApp();
-  if (!app) {
-    console.warn(`${MODULE_ID} | no overlay app; skipping cinematic`);
+  const renderer = getRenderer();
+  if (!renderer) {
+    console.warn(`${MODULE_ID} | no WebGL renderer; skipping cinematic`);
     return;
   }
 
-  const texture = await loadImage(event.imagePath);
-  if (!texture) {
+  const image = await loadImage(event.imagePath);
+  if (!image) {
     console.warn(`${MODULE_ID} | could not load image:`, event.imagePath);
     return;
   }
 
-  const stage = new PIXI.Container();
-  app.stage.addChild(stage);
+  renderer.resize();
+  renderer.setImage(image, image.naturalWidth, image.naturalHeight);
 
-  const { sw, sh } = screenSize();
-
-  const backdrop = new PIXI.Graphics();
-  backdrop.beginFill(0x000000, 1).drawRect(0, 0, sw, sh).endFill();
-  backdrop.alpha = 0;
-  stage.addChild(backdrop);
-
-  const sprite = new PIXI.Sprite(texture);
-  sprite.anchor.set(0.5);
-  sprite.position.set(sw * 0.5, sh * 0.5);
-  const baseScale = aspectFitScale(texture, sw, sh);
-  sprite.scale.set(baseScale);
-  sprite.alpha = 0;
-  stage.addChild(sprite);
-
-  const tw = texture.baseTexture?.realWidth ?? texture.width ?? 0;
-  const th = texture.baseTexture?.realHeight ?? texture.height ?? 0;
-  const fitW = tw * baseScale;
-  const fitH = th * baseScale;
-
-  const mask = new PIXI.Graphics();
-  stage.addChild(mask);
-  sprite.mask = mask;
-
-  const drawMask = (frac: number): void => {
-    const clamped = Math.max(0, Math.min(1, frac));
-    const h = fitH * clamped;
-    const x = sw * 0.5 - fitW * 0.5;
-    const y = sh * 0.5 - h * 0.5;
-    mask.clear().beginFill(0xffffff, 1).drawRect(x, y, fitW, h).endFill();
-  };
-  drawMask(0);
+  const isBreak = event.mode === ANIMATION_MODES.BREAK;
+  const frameFor = isBreak ? breakFrame : standardFrame;
 
   playSfx(event.isPC ? 'pc' : 'gm');
-  app.start();
 
   const start = performance.now();
   await new Promise<void>((resolve) => {
     const tick = (): void => {
       const t = Math.min(1, (performance.now() - start) / event.durationMs);
-      const frame = animate(t);
-      backdrop.alpha = frame.bgAlpha;
-      sprite.alpha = frame.imgAlpha;
-      sprite.scale.set(baseScale * frame.scaleMul);
-      drawMask(frame.wipe);
-
+      renderer.draw(frameFor(t));
       if (t >= 1) {
-        app.ticker.remove(tick);
         resolve();
+        return;
       }
+      requestAnimationFrame(tick);
     };
-    app.ticker.add(tick);
+    requestAnimationFrame(tick);
   });
 
-  sprite.mask = null;
-  stage.removeChildren();
-  (app.stage as PixiContainer).removeChildren();
-  sprite.destroy?.({ children: true });
-  backdrop.destroy?.({ children: true });
-  mask.destroy?.({ children: true });
-  stage.destroy?.({ children: true });
-  app.stop();
+  renderer.clear();
 }
 
-interface Frame {
-  bgAlpha: number;
-  imgAlpha: number;
-  scaleMul: number;
-  wipe: number;
+function backdropAlpha(t: number): number {
+  if (t < BG_FADE_IN_FRACTION) {
+    return easeOutCubic(t / BG_FADE_IN_FRACTION) * BG_PEAK_ALPHA;
+  }
+  if (t > 1 - BG_FADE_OUT_FRACTION) {
+    const k = (t - (1 - BG_FADE_OUT_FRACTION)) / BG_FADE_OUT_FRACTION;
+    return BG_PEAK_ALPHA * (1 - easeInCubic(k));
+  }
+  return BG_PEAK_ALPHA;
 }
 
 const HOLD_DRIFT = 0.04;
 const OUT_SCALE_BOOST = 0.16;
 
-function animate(t: number): Frame {
-  let bgAlpha: number;
-  if (t < BG_FADE_IN_FRACTION) {
-    bgAlpha = easeOutCubic(t / BG_FADE_IN_FRACTION) * BG_PEAK_ALPHA;
-  } else if (t > 1 - BG_FADE_OUT_FRACTION) {
-    const k = (t - (1 - BG_FADE_OUT_FRACTION)) / BG_FADE_OUT_FRACTION;
-    bgAlpha = BG_PEAK_ALPHA * (1 - easeInCubic(k));
-  } else {
-    bgAlpha = BG_PEAK_ALPHA;
-  }
-
+function standardFrame(t: number): DrawFrame {
   let imgAlpha = 1;
   let scaleMul = 1;
   let wipe = 1;
@@ -170,7 +87,39 @@ function animate(t: number): Frame {
     scaleMul = 1 + HOLD_DRIFT * easeInOutSine(k);
   }
 
-  return { bgAlpha, imgAlpha, scaleMul, wipe };
+  return { bgAlpha: backdropAlpha(t), imgAlpha, shatter: 0, scaleMul, wipe, flash: 0 };
+}
+
+const SHATTER_START = BREAK_FADE_IN_FRACTION + BREAK_HOLD_FRACTION;
+
+function breakFrame(t: number): DrawFrame {
+  let imgAlpha = 1;
+  let scaleMul = 1;
+  let shatter = 0;
+  let flash = 0;
+
+  if (t < BREAK_FADE_IN_FRACTION) {
+    const k = t / BREAK_FADE_IN_FRACTION;
+    imgAlpha = easeOutCubic(k);
+    // Slam in: settle from an over-scaled punch down to rest.
+    scaleMul = 1.12 - 0.12 * easeOutCubic(k);
+  } else if (t >= SHATTER_START) {
+    const k = (t - SHATTER_START) / (1 - SHATTER_START);
+    shatter = k * k; // accelerate as the glass lets go
+    // Bright glassy pop at the moment of breaking, decaying quickly.
+    flash = 0.7 * Math.max(0, 1 - k * 6);
+    // Hold full opacity; per-shard fade in the shader handles the dissolve.
+    imgAlpha = 1 - easeInCubic(Math.max(0, (k - 0.7) / 0.3));
+  }
+
+  return {
+    bgAlpha: backdropAlpha(t),
+    imgAlpha,
+    shatter,
+    scaleMul,
+    wipe: 1,
+    flash,
+  };
 }
 
 function easeOutCubic(t: number): number {
@@ -189,37 +138,24 @@ function easeInOutSine(t: number): number {
   return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
-function screenSize(): { sw: number; sh: number } {
-  return { sw: window.innerWidth, sh: window.innerHeight };
-}
+async function loadImage(src: string): Promise<HTMLImageElement | null> {
+  const tryLoad = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`failed to load ${url}`));
+      img.src = url;
+    });
 
-function aspectFitScale(texture: PixiTexture, sw: number, sh: number): number {
-  const tw = texture.baseTexture?.realWidth ?? texture.width ?? 0;
-  const th = texture.baseTexture?.realHeight ?? texture.height ?? 0;
-  if (!tw || !th) return 1;
-  return Math.min(sw / tw, sh / th);
-}
-
-async function loadImage(src: string): Promise<PixiTexture | null> {
   try {
-    // v13+ namespaces this as foundry.canvas.loadTexture; the bare global is
-    // deprecated. Fall back to the global, then to PIXI directly.
-    const namespaced = (
-      globalThis as {
-        foundry?: { canvas?: { loadTexture?: typeof loadTexture } };
-      }
-    ).foundry?.canvas?.loadTexture;
-    const fromGlobal =
-      namespaced ?? (globalThis as { loadTexture?: typeof loadTexture }).loadTexture;
-    if (typeof fromGlobal === 'function') {
-      const t = await fromGlobal(src, { fallback: FALLBACK_IMAGE });
-      if (t) return t;
-    }
-    if (typeof PIXI?.Texture?.from === 'function') {
-      return PIXI.Texture.from(src);
-    }
+    return await tryLoad(src);
   } catch (err) {
-    console.warn(`${MODULE_ID} | image load failed:`, src, err);
+    console.warn(`${MODULE_ID} | image load failed, using fallback:`, src, err);
+    try {
+      return await tryLoad(FALLBACK_IMAGE);
+    } catch {
+      return null;
+    }
   }
-  return null;
 }

@@ -19,6 +19,9 @@ This URL always resolves to the latest release, so Foundry's built-in update che
 ## Features
 
 - **Aspect-fit fullscreen reveal** — works with portraits, wide banner art, or square images. No cropping.
+- **WebGL-rendered animation** with two styles (Module Settings → Animation Style):
+  - **Standard** *(default)* — the portrait slides and wipes in, holds, then snaps out.
+  - **Break (glass shatter)** — the portrait fades in, then shatters like pane glass and flies toward the viewer with per-shard tumble and a bright pop, à la Persona 3 Reload.
 - **Two trigger modes** (Module Settings → Trigger Mode):
   - **PF2e Degree of Success** *(default)* — fires on the PF2e `criticalSuccess` outcome (Strikes, Spell Attacks, Saves, optionally Skills/Perception).
   - **Natural 20 Only** — fires on any active d20 result of 20, regardless of degree of success or roll type.
@@ -40,6 +43,7 @@ This URL always resolves to the latest release, so Foundry's built-in update che
 
 | Setting | Default | Notes |
 |---|---|---|
+| **Animation Style** | Standard | Standard (slide/wipe) or Break (glass shatter) |
 | **Trigger Mode** | PF2e Degree of Success | PF2e DoS or Nat-20 Only |
 | **NPC Default Image** | — | Shown for enabled NPCs without an override |
 | **PC / NPC Critical SFX** | — | Optional audio files |
