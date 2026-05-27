@@ -1,4 +1,5 @@
 import {
+  ANIMATION_MODES,
   DURATION_DEFAULT_MS,
   DURATION_MAX_MS,
   DURATION_MIN_MS,
@@ -63,6 +64,19 @@ export function registerSettings(): void {
     type: Number,
     default: DURATION_DEFAULT_MS,
     range: { min: DURATION_MIN_MS, max: DURATION_MAX_MS, step: 50 },
+  });
+
+  game.settings.register(MODULE_ID, SETTINGS.ANIMATION_MODE, {
+    name: 'GLUC.Settings.AnimationMode',
+    hint: 'GLUC.Settings.AnimationModeHint',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: {
+      [ANIMATION_MODES.STANDARD]: 'GLUC.Settings.AnimationModeChoiceStandard',
+      [ANIMATION_MODES.BREAK]: 'GLUC.Settings.AnimationModeChoiceBreak',
+    },
+    default: ANIMATION_MODES.STANDARD,
   });
 
   game.settings.register(MODULE_ID, SETTINGS.TRIGGER_MODE, {

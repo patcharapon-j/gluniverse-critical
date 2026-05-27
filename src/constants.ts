@@ -11,6 +11,11 @@ export const DURATION_DEFAULT_MS = 1000;
 export const EASE_IN_FRACTION = 0.15;
 export const EASE_OUT_FRACTION = 0.20;
 
+// "break" mode timeline (fractions of the total duration): the image fades in,
+// holds intact briefly, then shatters toward the viewer for the remainder.
+export const BREAK_FADE_IN_FRACTION = 0.22;
+export const BREAK_HOLD_FRACTION = 0.12;
+
 export const QUEUE_MAX = 3;
 export const DEDUPE_WINDOW_MS = 500;
 export const BROADCAST_SYNC_TOLERANCE_MS = 150;
@@ -23,6 +28,7 @@ export const SETTINGS = {
   PC_CRITICAL_SFX: 'pcCriticalSfx',
   GM_CRITICAL_SFX: 'gmCriticalSfx',
   CINEMATIC_DURATION: 'cinematicDuration',
+  ANIMATION_MODE: 'animationMode',
   TRIGGER_MODE: 'triggerMode',
   ENABLE_SKILL_CRITS: 'enableSkillCrits',
   ENABLE_PERCEPTION_CRITS: 'enablePerceptionCrits',
@@ -38,6 +44,13 @@ export const TRIGGER_MODES = {
 } as const;
 
 export type TriggerMode = (typeof TRIGGER_MODES)[keyof typeof TRIGGER_MODES];
+
+export const ANIMATION_MODES = {
+  STANDARD: 'standard',
+  BREAK: 'break',
+} as const;
+
+export type AnimationMode = (typeof ANIMATION_MODES)[keyof typeof ANIMATION_MODES];
 
 export const ACTOR_FLAGS = {
   SCHEMA_VERSION: 'schemaVersion',

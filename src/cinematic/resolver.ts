@@ -1,4 +1,4 @@
-import { ACTOR_FLAGS, FLAG_SCOPE, SETTINGS } from '../constants';
+import { ACTOR_FLAGS, type AnimationMode, FLAG_SCOPE, SETTINGS } from '../constants';
 import { getSetting } from '../settings/settings';
 import type { CritEvent } from '../types/module';
 
@@ -34,6 +34,7 @@ export function resolveCritEvent(input: ResolveInput): CritEvent | null {
     isPC: input.isPC,
     imagePath: resolveImage(actor, input.isPC),
     durationMs: getSetting<number>(SETTINGS.CINEMATIC_DURATION),
+    mode: getSetting<AnimationMode>(SETTINGS.ANIMATION_MODE),
     startTimestamp: Date.now(),
     originUserId: input.originUserId,
   };

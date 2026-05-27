@@ -1,4 +1,4 @@
-import { mountOverlay } from './cinematic/overlay-app';
+import { mountGLOverlay } from './cinematic/webgl/renderer';
 import { MODULE_ID, PF2E_SYSTEM_ID } from './constants';
 import { registerDetector } from './detector/pf2e-detector';
 import { runMigrations } from './migrations';
@@ -41,7 +41,7 @@ Hooks.once('ready', async () => {
 
   console.log(`${MODULE_ID} | ready`);
   await runMigrations();
-  mountOverlay();
+  mountGLOverlay();
   registerSockets();
   registerDetector();
   registerActorSheetHooks();

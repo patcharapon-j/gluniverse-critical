@@ -1,3 +1,5 @@
+import type { AnimationMode } from '../constants';
+
 export interface CritEvent {
   messageId: string;
   actorId: string;
@@ -5,6 +7,7 @@ export interface CritEvent {
   isPC: boolean;
   imagePath: string;
   durationMs: number;
+  mode: AnimationMode;
   startTimestamp: number;
   originUserId: string;
 }
