@@ -47,7 +47,7 @@ interface PixiContainer {
 
 const FALLBACK_IMAGE = 'icons/svg/mystery-man.svg';
 
-const BG_FADE_IN_FRACTION = 0.20;
+const BG_FADE_IN_FRACTION = 0.2;
 const BG_FADE_OUT_FRACTION = 0.28;
 const BG_PEAK_ALPHA = 0.85;
 
@@ -202,7 +202,15 @@ function aspectFitScale(texture: PixiTexture, sw: number, sh: number): number {
 
 async function loadImage(src: string): Promise<PixiTexture | null> {
   try {
-    const fromGlobal = (globalThis as { loadTexture?: typeof loadTexture }).loadTexture;
+    // v13+ namespaces this as foundry.canvas.loadTexture; the bare global is
+    // deprecated. Fall back to the global, then to PIXI directly.
+    const namespaced = (
+      globalThis as {
+        foundry?: { canvas?: { loadTexture?: typeof loadTexture } };
+      }
+    ).foundry?.canvas?.loadTexture;
+    const fromGlobal =
+      namespaced ?? (globalThis as { loadTexture?: typeof loadTexture }).loadTexture;
     if (typeof fromGlobal === 'function') {
       const t = await fromGlobal(src, { fallback: FALLBACK_IMAGE });
       if (t) return t;

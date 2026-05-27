@@ -77,20 +77,26 @@ function mountOverlay() {
 function getOverlayApp() {
   return app;
 }
-class GMConfigMenu extends FormApplication {
-  static get defaultOptions() {
-    return {
-      ...FormApplication.defaultOptions,
-      id: `${MODULE_ID}-gm-config`,
-      title: "GLUniverse Critical — GM Configuration",
-      template: `modules/${MODULE_ID}/templates/gm-config.html`,
-      width: 520,
-      height: "auto",
+const Base$1 = foundry.applications.api.HandlebarsApplicationMixin(
+  foundry.applications.api.ApplicationV2
+);
+class GMConfigMenu extends Base$1 {
+  static DEFAULT_OPTIONS = {
+    id: `${MODULE_ID}-gm-config`,
+    tag: "form",
+    classes: ["gluc-gm-config"],
+    window: { title: "GLUC.Settings.MenuName", icon: "fa-solid fa-cog" },
+    position: { width: 520, height: "auto" },
+    form: {
+      handler: GMConfigMenu.#onSubmit,
       closeOnSubmit: true,
       submitOnChange: false
-    };
-  }
-  getData() {
+    }
+  };
+  static PARTS = {
+    form: { template: `modules/${MODULE_ID}/templates/gm-config.html` }
+  };
+  async _prepareContext() {
     return {
       data: {
         gmAvatar: getSetting(SETTINGS.GM_AVATAR),
@@ -102,12 +108,13 @@ class GMConfigMenu extends FormApplication {
       durationMax: DURATION_MAX_MS
     };
   }
-  async _updateObject(_event, formData) {
+  static async #onSubmit(_event, _form, formData) {
+    const data = formData.object;
     await Promise.all([
-      setSetting(SETTINGS.GM_AVATAR, String(formData.gmAvatar ?? "")),
-      setSetting(SETTINGS.PC_CRITICAL_SFX, String(formData.pcCriticalSfx ?? "")),
-      setSetting(SETTINGS.GM_CRITICAL_SFX, String(formData.gmCriticalSfx ?? "")),
-      setSetting(SETTINGS.CINEMATIC_DURATION, Number(formData.cinematicDuration))
+      setSetting(SETTINGS.GM_AVATAR, String(data.gmAvatar ?? "")),
+      setSetting(SETTINGS.PC_CRITICAL_SFX, String(data.pcCriticalSfx ?? "")),
+      setSetting(SETTINGS.GM_CRITICAL_SFX, String(data.gmCriticalSfx ?? "")),
+      setSetting(SETTINGS.CINEMATIC_DURATION, Number(data.cinematicDuration))
     ]);
   }
 }
@@ -382,7 +389,8 @@ function aspectFitScale(texture, sw, sh) {
 }
 async function loadImage(src) {
   try {
-    const fromGlobal = globalThis.loadTexture;
+    const namespaced = globalThis.foundry?.canvas?.loadTexture;
+    const fromGlobal = namespaced ?? globalThis.loadTexture;
     if (typeof fromGlobal === "function") {
       const t = await fromGlobal(src, { fallback: FALLBACK_IMAGE$1 });
       if (t) return t;
@@ -682,23 +690,36 @@ function createPublicAPI(version) {
     }
   };
 }
-class ActorConfigModal extends FormApplication {
-  static get defaultOptions() {
-    return {
-      ...FormApplication.defaultOptions,
-      id: `${MODULE_ID}-actor-config`,
-      template: `modules/${MODULE_ID}/templates/actor-config.html`,
-      width: 480,
-      height: "auto",
+const Base = foundry.applications.api.HandlebarsApplicationMixin(
+  foundry.applications.api.ApplicationV2
+);
+class ActorConfigModal extends Base {
+  #actor;
+  static DEFAULT_OPTIONS = {
+    id: `${MODULE_ID}-actor-config`,
+    tag: "form",
+    classes: ["gluc-actor-config"],
+    window: { title: "GLUC.Actor.HeaderButton", icon: "fa-solid fa-bolt" },
+    position: { width: 480, height: "auto" },
+    form: {
+      handler: ActorConfigModal.#onSubmit,
       closeOnSubmit: true,
       submitOnChange: false
-    };
-  }
+    },
+    actions: {
+      test: ActorConfigModal.#onTest,
+      broadcast: ActorConfigModal.#onBroadcast
+    }
+  };
+  static PARTS = {
+    form: { template: `modules/${MODULE_ID}/templates/actor-config.html` }
+  };
   constructor(actor, options = {}) {
-    super(actor, options);
+    super(options);
+    this.#actor = actor;
   }
   get actor() {
-    return this.object;
+    return this.#actor;
   }
   /**
    * Always operate on the world (base) actor, not a synthetic token-actor.
@@ -706,18 +727,18 @@ class ActorConfigModal extends FormApplication {
    * are invisible to the detector, which resolves speakers via
    * `game.actors.get(speaker.actor)` (always the base).
    */
-  get baseActor() {
-    const a = this.actor;
+  get #baseActor() {
+    const a = this.#actor;
     return game.actors.get(a.id) ?? a;
   }
   get title() {
-    const isNPC = !this.actor.hasPlayerOwner;
+    const isNPC = !this.#actor.hasPlayerOwner;
     const key = isNPC ? "GLUC.Actor.ModalTitleNPC" : "GLUC.Actor.ModalTitlePC";
-    return game.i18n.format(key, { name: this.actor.name ?? "Actor" });
+    return game.i18n.format(key, { name: this.#actor.name ?? "Actor" });
   }
-  getData() {
-    const flags = readActorFlags(this.baseActor);
-    const isNPC = !this.actor.hasPlayerOwner;
+  async _prepareContext() {
+    const flags = readActorFlags(this.#baseActor);
+    const isNPC = !this.#actor.hasPlayerOwner;
     return {
       isNPC,
       isGM: game.user.isGM,
@@ -727,17 +748,24 @@ class ActorConfigModal extends FormApplication {
       }
     };
   }
-  activateListeners(html) {
-    super.activateListeners(html);
-    html.find(".gluc-test-button").on("click", () => {
-      void this.runTest(false);
-    });
-    html.find(".gluc-broadcast-button").on("click", () => {
-      void this.runTest(true);
+  static async #onSubmit(_event, _form, formData) {
+    const base = this.#baseActor;
+    const isNPC = !base.hasPlayerOwner;
+    const data = formData.object;
+    const enabled = isNPC ? Boolean(data.enabled) : true;
+    await writeActorFlags(base, {
+      enabled,
+      portraitOverride: String(data.portraitOverride ?? "") || null
     });
   }
-  async runTest(broadcast) {
-    const base = this.baseActor;
+  static #onTest() {
+    void this.#runTest(false);
+  }
+  static #onBroadcast() {
+    void this.#runTest(true);
+  }
+  async #runTest(broadcast) {
+    const base = this.#baseActor;
     const event = resolveCritEvent({
       messageId: `${broadcast ? "manual" : "test"}-${Date.now()}`,
       actorId: base.id,
@@ -752,30 +780,30 @@ class ActorConfigModal extends FormApplication {
       console.error(`${MODULE_ID} | ${broadcast ? "broadcast" : "test"} cinematic failed:`, err);
     }
   }
-  async _updateObject(_event, formData) {
-    const base = this.baseActor;
-    const isNPC = !base.hasPlayerOwner;
-    const enabled = isNPC ? Boolean(formData.enabled) : true;
-    await writeActorFlags(base, {
-      enabled,
-      portraitOverride: String(formData.portraitOverride ?? "") || null
-    });
-  }
 }
+const HEADER_BTN_CLASS = `${MODULE_ID}-header-btn`;
 function registerActorSheetHooks() {
-  Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
-    const actor = sheet.actor;
+  Hooks.on("renderActorSheetV2", (sheet, element) => {
+    const actor = sheet.actor ?? sheet.document;
     if (!actor) return;
     const canOpen = actor.isOwner || game.user.isGM;
     if (!canOpen) return;
-    buttons.unshift({
-      label: "GLUC.Actor.HeaderButton",
-      class: `${MODULE_ID}-header-btn`,
-      icon: "fas fa-bolt",
-      onclick: () => {
-        new ActorConfigModal(actor).render(true);
-      }
+    const header = element.querySelector(".window-header");
+    if (!header) return;
+    if (header.querySelector(`.${HEADER_BTN_CLASS}`)) return;
+    const label = game.i18n.localize("GLUC.Actor.HeaderButton");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `header-control icon fa-solid fa-bolt ${HEADER_BTN_CLASS}`;
+    btn.dataset.tooltip = label;
+    btn.setAttribute("aria-label", label);
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      new ActorConfigModal(actor).render(true);
     });
+    const closeBtn = header.querySelector('[data-action="close"]');
+    if (closeBtn) header.insertBefore(btn, closeBtn);
+    else header.appendChild(btn);
   });
 }
 Hooks.once("init", () => {
