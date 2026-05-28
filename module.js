@@ -782,14 +782,24 @@ class ActorConfigModal extends Base {
   }
 }
 const ACTION = `${MODULE_ID}-open-config`;
+const HEADER_BTN_CLASS = `${MODULE_ID}-header-btn`;
 const WIRED_ATTR = "glucWired";
+function canConfigure(actor) {
+  return Boolean(actor.isOwner) || game.user.isGM;
+}
+function openConfig(actor, event) {
+  event.preventDefault();
+  event.stopPropagation();
+  new ActorConfigModal(actor).render(true);
+}
 function registerActorSheetHooks() {
   Hooks.on(
     "getHeaderControlsActorSheetV2",
     (app2, controls) => {
       const actor = app2.actor ?? app2.document;
       if (!actor) return;
-      if (!actor.isOwner && !game.user.isGM) return;
+      if (!canConfigure(actor)) return;
+      if (controls.some((c) => c.action === ACTION)) return;
       controls.push({
         action: ACTION,
         icon: "fa-solid fa-bolt",
@@ -801,14 +811,29 @@ function registerActorSheetHooks() {
   Hooks.on("renderActorSheetV2", (sheet, element) => {
     const actor = sheet.actor ?? sheet.document;
     if (!actor) return;
-    const btn = element.querySelector(`[data-action="${ACTION}"]`);
-    if (!btn || btn.dataset[WIRED_ATTR] === "1") return;
+    if (!canConfigure(actor)) return;
+    const existing = element.querySelector(`[data-action="${ACTION}"]`);
+    if (existing) {
+      if (existing.dataset[WIRED_ATTR] !== "1") {
+        existing.dataset[WIRED_ATTR] = "1";
+        existing.addEventListener("click", (event) => openConfig(actor, event));
+      }
+      return;
+    }
+    const header = element.querySelector(".window-header");
+    if (!header || header.querySelector(`.${HEADER_BTN_CLASS}`)) return;
+    const label = game.i18n.localize("GLUC.Actor.HeaderButton");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `header-control icon fa-solid fa-bolt ${HEADER_BTN_CLASS}`;
+    btn.dataset.action = ACTION;
     btn.dataset[WIRED_ATTR] = "1";
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      new ActorConfigModal(actor).render(true);
-    });
+    btn.dataset.tooltip = label;
+    btn.setAttribute("aria-label", label);
+    btn.addEventListener("click", (event) => openConfig(actor, event));
+    const closeBtn = header.querySelector('[data-action="close"]');
+    if (closeBtn) header.insertBefore(btn, closeBtn);
+    else header.appendChild(btn);
   });
 }
 Hooks.once("init", () => {
