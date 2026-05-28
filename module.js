@@ -781,29 +781,34 @@ class ActorConfigModal extends Base {
     }
   }
 }
-const HEADER_BTN_CLASS = `${MODULE_ID}-header-btn`;
+const ACTION = `${MODULE_ID}-open-config`;
+const WIRED_ATTR = "glucWired";
 function registerActorSheetHooks() {
+  Hooks.on(
+    "getHeaderControlsActorSheetV2",
+    (app2, controls) => {
+      const actor = app2.actor ?? app2.document;
+      if (!actor) return;
+      if (!actor.isOwner && !game.user.isGM) return;
+      controls.push({
+        action: ACTION,
+        icon: "fa-solid fa-bolt",
+        label: "GLUC.Actor.HeaderButton",
+        visible: true
+      });
+    }
+  );
   Hooks.on("renderActorSheetV2", (sheet, element) => {
     const actor = sheet.actor ?? sheet.document;
     if (!actor) return;
-    const canOpen = actor.isOwner || game.user.isGM;
-    if (!canOpen) return;
-    const header = element.querySelector(".window-header");
-    if (!header) return;
-    if (header.querySelector(`.${HEADER_BTN_CLASS}`)) return;
-    const label = game.i18n.localize("GLUC.Actor.HeaderButton");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = `header-control icon fa-solid fa-bolt ${HEADER_BTN_CLASS}`;
-    btn.dataset.tooltip = label;
-    btn.setAttribute("aria-label", label);
+    const btn = element.querySelector(`[data-action="${ACTION}"]`);
+    if (!btn || btn.dataset[WIRED_ATTR] === "1") return;
+    btn.dataset[WIRED_ATTR] = "1";
     btn.addEventListener("click", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       new ActorConfigModal(actor).render(true);
     });
-    const closeBtn = header.querySelector('[data-action="close"]');
-    if (closeBtn) header.insertBefore(btn, closeBtn);
-    else header.appendChild(btn);
   });
 }
 Hooks.once("init", () => {

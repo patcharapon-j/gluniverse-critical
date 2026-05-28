@@ -6,7 +6,6 @@ declare const Hooks: {
 };
 declare const game: {
   user: { isGM: boolean };
-  i18n: { localize(key: string): string };
 };
 
 type AnyActor = {
@@ -21,40 +20,52 @@ type AnyActorSheet = {
   document?: AnyActor;
 };
 
-const HEADER_BTN_CLASS = `${MODULE_ID}-header-btn`;
+type HeaderControlEntry = {
+  action: string;
+  icon: string;
+  label: string;
+  visible?: boolean;
+};
+
+const ACTION = `${MODULE_ID}-open-config`;
+const WIRED_ATTR = 'glucWired';
 
 /**
- * PF2e actor sheets are ApplicationV2 in v13+, where the legacy
- * `getActorSheetHeaderButtons` hook no longer fires. ApplicationV2 header
- * controls also can't run a custom click handler on a sheet we don't own, so
- * we inject the button into the rendered window header on `renderActorSheetV2`
- * (which fires for every ActorSheetV2 subclass, PF2e's included).
+ * V13 ApplicationV2 renders custom header controls into the `.controls-dropdown`
+ * menu via the `getHeaderControls<Class>` hook. Injecting a raw button into
+ * `.window-header` (the previous approach) placed it inline next to the close
+ * control instead of in the dropdown, breaking the standard sheet layout.
+ *
+ * `ApplicationHeaderControlsEntry` has no `onClick` field, so the entry only
+ * declares an `action`; we wire the actual click on `renderActorSheetV2` since
+ * we don't own the sheet's `actions` map.
  */
 export function registerActorSheetHooks(): void {
+  Hooks.on(
+    'getHeaderControlsActorSheetV2',
+    (app: AnyActorSheet, controls: HeaderControlEntry[]) => {
+      const actor = app.actor ?? app.document;
+      if (!actor) return;
+      if (!actor.isOwner && !game.user.isGM) return;
+      controls.push({
+        action: ACTION,
+        icon: 'fa-solid fa-bolt',
+        label: 'GLUC.Actor.HeaderButton',
+        visible: true,
+      });
+    },
+  );
+
   Hooks.on('renderActorSheetV2', (sheet: AnyActorSheet, element: HTMLElement) => {
     const actor = sheet.actor ?? sheet.document;
     if (!actor) return;
-
-    const canOpen = actor.isOwner || game.user.isGM;
-    if (!canOpen) return;
-
-    const header = element.querySelector('.window-header');
-    if (!header) return;
-    if (header.querySelector(`.${HEADER_BTN_CLASS}`)) return;
-
-    const label = game.i18n.localize('GLUC.Actor.HeaderButton');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `header-control icon fa-solid fa-bolt ${HEADER_BTN_CLASS}`;
-    btn.dataset.tooltip = label;
-    btn.setAttribute('aria-label', label);
+    const btn = element.querySelector<HTMLElement>(`[data-action="${ACTION}"]`);
+    if (!btn || btn.dataset[WIRED_ATTR] === '1') return;
+    btn.dataset[WIRED_ATTR] = '1';
     btn.addEventListener('click', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       new ActorConfigModal(actor as never).render(true);
     });
-
-    const closeBtn = header.querySelector('[data-action="close"]');
-    if (closeBtn) header.insertBefore(btn, closeBtn);
-    else header.appendChild(btn);
   });
 }
