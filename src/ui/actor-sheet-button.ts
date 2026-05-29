@@ -28,6 +28,13 @@ type HeaderControlEntry = {
   visible?: boolean;
 };
 
+type HeaderButtonEntry = {
+  class: string;
+  icon: string;
+  label: string;
+  onclick: (event?: Event) => void;
+};
+
 const ACTION = `${MODULE_ID}-open-config`;
 const HEADER_BTN_CLASS = `${MODULE_ID}-header-btn`;
 const WIRED_ATTR = 'glucWired';
@@ -36,24 +43,43 @@ function canConfigure(actor: AnyActor): boolean {
   return Boolean(actor.isOwner) || game.user.isGM;
 }
 
-function openConfig(actor: AnyActor, event: Event): void {
-  event.preventDefault();
-  event.stopPropagation();
+function openConfig(actor: AnyActor, event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
   new ActorConfigModal(actor as never).render(true);
 }
 
 /**
- * V13 ApplicationV2 renders custom header controls into the `.controls-dropdown`
- * menu via the `getHeaderControls<Class>` hook. Under Foundry v14, PF2e's actor
- * sheets no longer surface entries pushed through that hook as a visible button,
- * so the hook alone leaves nothing for players to click. We still register the
- * entry (so v13 gets the native dropdown item), but on `renderActorSheetV2` we
- * fall back to injecting a header-control button when the hook produced none.
+ * The PF2e PC and NPC sheets are still ApplicationV1 (`ActorSheet`) on Foundry
+ * v13/v14 — they use `_updateObject`/`_onDrop`, not the V2 lifecycle. V1 sheets
+ * never fire the `getHeaderControlsActorSheetV2` / `renderActorSheetV2` hooks, so
+ * an earlier V2-only implementation left no button at all. The reliable path for
+ * V1 sheets is the `getActorSheetHeaderButtons` hook, which fires for every
+ * `ActorSheet` subclass and supports a native `onclick`, so we register there.
  *
- * `ApplicationHeaderControlsEntry` has no `onClick` field, so we wire the click
- * in the render hook regardless of which path created the button.
+ * We also keep the V2 hooks below so the button keeps working for any sheet that
+ * is (or becomes) ApplicationV2. A V1 sheet only fires the V1 hooks and a V2
+ * sheet only fires the V2 hooks, so the two paths never double up.
  */
 export function registerActorSheetHooks(): void {
+  // --- ApplicationV1 actor sheets (PF2e PC + NPC) ---
+  Hooks.on(
+    'getActorSheetHeaderButtons',
+    (app: AnyActorSheet, buttons: HeaderButtonEntry[]) => {
+      const actor = app.actor ?? app.document;
+      if (!actor) return;
+      if (!canConfigure(actor)) return;
+      if (buttons.some((b) => b.class === HEADER_BTN_CLASS)) return;
+      buttons.unshift({
+        class: HEADER_BTN_CLASS,
+        icon: 'fa-solid fa-bolt',
+        label: game.i18n.localize('GLUC.Actor.HeaderButton'),
+        onclick: (event) => openConfig(actor, event),
+      });
+    },
+  );
+
+  // --- ApplicationV2 actor sheets (forward compatibility) ---
   Hooks.on(
     'getHeaderControlsActorSheetV2',
     (app: AnyActorSheet, controls: HeaderControlEntry[]) => {

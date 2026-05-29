@@ -788,11 +788,26 @@ function canConfigure(actor) {
   return Boolean(actor.isOwner) || game.user.isGM;
 }
 function openConfig(actor, event) {
-  event.preventDefault();
-  event.stopPropagation();
+  event?.preventDefault();
+  event?.stopPropagation();
   new ActorConfigModal(actor).render(true);
 }
 function registerActorSheetHooks() {
+  Hooks.on(
+    "getActorSheetHeaderButtons",
+    (app2, buttons) => {
+      const actor = app2.actor ?? app2.document;
+      if (!actor) return;
+      if (!canConfigure(actor)) return;
+      if (buttons.some((b) => b.class === HEADER_BTN_CLASS)) return;
+      buttons.unshift({
+        class: HEADER_BTN_CLASS,
+        icon: "fa-solid fa-bolt",
+        label: game.i18n.localize("GLUC.Actor.HeaderButton"),
+        onclick: (event) => openConfig(actor, event)
+      });
+    }
+  );
   Hooks.on(
     "getHeaderControlsActorSheetV2",
     (app2, controls) => {
