@@ -29,6 +29,7 @@ This URL always resolves to the latest release, so Foundry's built-in update che
   - GMs can enable/disable the cinematic for each NPC (default OFF for NPCs, always ON for PCs).
   - Set a per-actor **Image Override** (replaces the actor art for that one actor's cinematic).
   - **Test** button plays the cinematic locally without broadcasting.
+  - Works across sheet frameworks: PF2e's ApplicationV1 sheets, core ApplicationV2 sheets, and **Tidy 5e Sheets** (registered through Tidy's own header-controls API since it renders a custom header).
 - **GM Configuration menu** (gear icon in Module Settings):
   - NPC Default Image (used for any enabled NPC without an override)
   - PC Critical SFX / NPC Critical SFX

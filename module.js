@@ -926,25 +926,59 @@ function openConfig(actor, event) {
   event?.stopPropagation();
   new ActorConfigModal(actor).render(true);
 }
-function registerActorSheetHooks() {
-  Hooks.on(
-    "getActorSheetHeaderButtons",
-    (app2, buttons) => {
-      const actor = app2.actor ?? app2.document;
-      if (!actor) return;
-      if (!canConfigure(actor)) return;
-      if (buttons.some((b) => b.class === HEADER_BTN_CLASS)) return;
-      buttons.unshift({
-        class: HEADER_BTN_CLASS,
+const TIDY_MODULE_ID = "tidy5e-sheet";
+function isTidySheet(app2) {
+  const a = app2;
+  if (a?.constructor?.name?.includes("Tidy")) return true;
+  const classes = a?.options?.classes;
+  return Array.isArray(classes) && classes.includes(TIDY_MODULE_ID);
+}
+function getTidyApi() {
+  return game.modules?.get(TIDY_MODULE_ID)?.api;
+}
+let tidyControlsRegistered = false;
+function registerTidyHeaderControls(api) {
+  if (tidyControlsRegistered || typeof api?.registerActorHeaderControls !== "function") return;
+  tidyControlsRegistered = true;
+  api.registerActorHeaderControls({
+    controls: [
+      {
         icon: "fa-solid fa-bolt",
+        // Tidy localizes header-control labels; passing the already-localized
+        // string is a no-op if it tries again, so this is safe either way.
         label: game.i18n.localize("GLUC.Actor.HeaderButton"),
-        onclick: (event) => openConfig(actor, event)
-      });
-    }
-  );
+        position: "header",
+        visible() {
+          const actor = this?.document ?? this?.actor;
+          return !!actor && canConfigure(actor);
+        },
+        onClickAction(event) {
+          const actor = this?.document ?? this?.actor;
+          if (actor) openConfig(actor, event);
+        }
+      }
+    ]
+  });
+}
+function registerActorSheetHooks() {
+  registerTidyHeaderControls(getTidyApi());
+  Hooks.once("tidy5e-sheet.ready", (api) => registerTidyHeaderControls(api));
+  Hooks.on("getActorSheetHeaderButtons", (app2, buttons) => {
+    const actor = app2.actor ?? app2.document;
+    if (!actor) return;
+    if (!canConfigure(actor)) return;
+    if (buttons.some((b) => b.class === HEADER_BTN_CLASS)) return;
+    buttons.unshift({
+      class: HEADER_BTN_CLASS,
+      icon: "fa-solid fa-bolt",
+      label: game.i18n.localize("GLUC.Actor.HeaderButton"),
+      onclick: (event) => openConfig(actor, event)
+    });
+  });
   Hooks.on(
     "getHeaderControlsActorSheetV2",
     (app2, controls) => {
+      if (isTidySheet(app2)) return;
       const actor = app2.actor ?? app2.document;
       if (!actor) return;
       if (!canConfigure(actor)) return;
@@ -958,6 +992,7 @@ function registerActorSheetHooks() {
     }
   );
   Hooks.on("renderActorSheetV2", (sheet, element) => {
+    if (isTidySheet(sheet)) return;
     const actor = sheet.actor ?? sheet.document;
     if (!actor) return;
     if (!canConfigure(actor)) return;
