@@ -26,6 +26,7 @@ const SETTINGS = {
 };
 const TRIGGER_MODES = {
   PF2E_DEGREE_OF_SUCCESS: "pf2e",
+  DND5E_CRITICAL_HIT: "dnd5e",
   NAT20_ONLY: "nat20"
 };
 const ACTOR_FLAGS = {
@@ -40,6 +41,9 @@ const LEGACY_ACTOR_FLAG_KEYS = [
   "colorBg"
 ];
 const PF2E_SYSTEM_ID$1 = "pf2e";
+const DND5E_SYSTEM_ID = "dnd5e";
+const SUPPORTED_SYSTEM_IDS = [PF2E_SYSTEM_ID$1, DND5E_SYSTEM_ID];
+const DND5E_PERCEPTION_SKILL_ID = "prc";
 let app = null;
 let container = null;
 let resizeHandler = null;
@@ -118,6 +122,24 @@ class GMConfigMenu extends Base$1 {
     ]);
   }
 }
+function triggerModeConfig() {
+  if (game.system.id === DND5E_SYSTEM_ID) {
+    return {
+      choices: {
+        [TRIGGER_MODES.DND5E_CRITICAL_HIT]: "GLUC.Settings.TriggerModeChoiceDnd5e",
+        [TRIGGER_MODES.NAT20_ONLY]: "GLUC.Settings.TriggerModeChoiceNat20"
+      },
+      default: TRIGGER_MODES.DND5E_CRITICAL_HIT
+    };
+  }
+  return {
+    choices: {
+      [TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS]: "GLUC.Settings.TriggerModeChoicePF2e",
+      [TRIGGER_MODES.NAT20_ONLY]: "GLUC.Settings.TriggerModeChoiceNat20"
+    },
+    default: TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS
+  };
+}
 function registerSettings() {
   game.settings.registerMenu(MODULE_ID, "gmConfigMenu", {
     name: "GLUC.Settings.MenuName",
@@ -160,17 +182,15 @@ function registerSettings() {
     default: DURATION_DEFAULT_MS,
     range: { min: DURATION_MIN_MS, max: DURATION_MAX_MS, step: 50 }
   });
+  const triggerMode = triggerModeConfig();
   game.settings.register(MODULE_ID, SETTINGS.TRIGGER_MODE, {
     name: "GLUC.Settings.TriggerMode",
     hint: "GLUC.Settings.TriggerModeHint",
     scope: "world",
     config: true,
     type: String,
-    choices: {
-      [TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS]: "GLUC.Settings.TriggerModeChoicePF2e",
-      [TRIGGER_MODES.NAT20_ONLY]: "GLUC.Settings.TriggerModeChoiceNat20"
-    },
-    default: TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS
+    choices: triggerMode.choices,
+    default: triggerMode.default
   });
   game.settings.register(MODULE_ID, SETTINGS.ENABLE_SKILL_CRITS, {
     name: "GLUC.Settings.EnableSkillCrits",
@@ -478,6 +498,121 @@ function broadcastCrit(event) {
   const payload = { type: "critical", event };
   game.socket.emit(SOCKET_CHANNEL, payload);
 }
+function activeResults(die) {
+  const results = die.results ?? [];
+  return results.filter((r) => r.discarded !== true && r.active !== false);
+}
+function hasNat20Result(message) {
+  const rolls = message.rolls;
+  if (!Array.isArray(rolls)) return false;
+  for (const roll of rolls) {
+    const dice = roll.dice;
+    if (!Array.isArray(dice)) continue;
+    for (const die of dice) {
+      if (die.faces !== 20) continue;
+      if (activeResults(die).some((r) => r.result === 20)) return true;
+    }
+  }
+  return false;
+}
+function getAttackCriticalHit(message) {
+  const rolls = message.rolls;
+  if (!Array.isArray(rolls)) return void 0;
+  let sawD20 = false;
+  for (const roll of rolls) {
+    if (roll.isCritical === true) return true;
+    const dice = roll.dice;
+    if (!Array.isArray(dice)) continue;
+    for (const die of dice) {
+      if (die.faces !== 20) continue;
+      sawD20 = true;
+      const threshold = die.options?.criticalSuccess ?? 20;
+      if (activeResults(die).some((r) => typeof r.result === "number" && r.result >= threshold)) {
+        return true;
+      }
+    }
+  }
+  return sawD20 ? false : void 0;
+}
+const NEVER_FIRES = /* @__PURE__ */ new Set(["damage", "initiative"]);
+function isPerceptionSkill(skillId) {
+  return skillId === DND5E_PERCEPTION_SKILL_ID || skillId === "perception";
+}
+function detectDnd5e(input) {
+  if (input.systemId !== DND5E_SYSTEM_ID) return { fire: false, reason: "wrong-system" };
+  if (input.rollMode === "blindroll" || input.blind) {
+    return { fire: false, reason: "secret-or-blind-roll" };
+  }
+  if (!input.hasActor) return { fire: false, reason: "no-actor" };
+  if (input.triggerMode === "nat20") {
+    if (!input.nat20Detected) return { fire: false, reason: "not-nat20" };
+    if (!input.actorHasPlayerOwner && !input.npcEnabled) {
+      return { fire: false, reason: "npc-not-enabled" };
+    }
+    return { fire: true, reason: "nat20" };
+  }
+  const roll = input.dnd5eRoll;
+  const type = roll?.type;
+  if (!type) return { fire: false, reason: "no-context" };
+  if (NEVER_FIRES.has(type)) {
+    return { fire: false, reason: "damage-or-initiative-blocked" };
+  }
+  let fireReason;
+  if (type === "attack") {
+    const isCrit = input.criticalHit ?? input.nat20Detected;
+    if (!isCrit) return { fire: false, reason: "not-critical-hit" };
+    fireReason = "dnd5e-critical-hit";
+  } else if (type === "skill" || type === "tool") {
+    if (type === "skill" && isPerceptionSkill(roll?.skillId)) {
+      if (!input.perceptionCritsEnabled) {
+        return { fire: false, reason: "perception-crits-disabled" };
+      }
+    } else if (!input.skillCritsEnabled) {
+      return { fire: false, reason: "skill-crits-disabled" };
+    }
+    if (!input.nat20Detected) return { fire: false, reason: "not-critical-hit" };
+    fireReason = "nat20";
+  } else if (type === "ability") {
+    if (!input.skillCritsEnabled) return { fire: false, reason: "skill-crits-disabled" };
+    if (!input.nat20Detected) return { fire: false, reason: "not-critical-hit" };
+    fireReason = "nat20";
+  } else if (type === "save" || type === "death") {
+    if (!input.nat20Detected) return { fire: false, reason: "not-critical-hit" };
+    fireReason = "nat20";
+  } else {
+    return { fire: false, reason: "unsupported-roll-type" };
+  }
+  if (!input.actorHasPlayerOwner && !input.npcEnabled) {
+    return { fire: false, reason: "npc-not-enabled" };
+  }
+  return { fire: true, reason: fireReason };
+}
+function buildInputFromMessage$1(message) {
+  const actorId = message.speaker?.actor;
+  const actor = actorId ? game.actors.get(actorId) : void 0;
+  const rollFlag = message.flags?.dnd5e?.roll ?? null;
+  return {
+    systemId: game.system.id,
+    context: null,
+    dnd5eRoll: rollFlag ? { type: rollFlag.type, skillId: rollFlag.skillId, ability: rollFlag.ability } : null,
+    criticalHit: getAttackCriticalHit(message),
+    rollMode: message.rollMode ?? "publicroll",
+    whisperLength: message.whisper?.length ?? 0,
+    blind: message.blind ?? false,
+    hasActor: !!actor,
+    actorHasPlayerOwner: actor?.hasPlayerOwner ?? false,
+    npcEnabled: actor ? actor.getFlag(FLAG_SCOPE, ACTOR_FLAGS.ENABLED) ?? false : false,
+    triggerMode: getSetting(SETTINGS.TRIGGER_MODE),
+    nat20Detected: hasNat20Result(message),
+    skillCritsEnabled: getSetting(SETTINGS.ENABLE_SKILL_CRITS),
+    perceptionCritsEnabled: getSetting(SETTINGS.ENABLE_PERCEPTION_CRITS)
+  };
+}
+const dnd5eAdapter = {
+  systemId: DND5E_SYSTEM_ID,
+  buildInput: buildInputFromMessage$1,
+  detect: detectDnd5e
+};
 const SUPPORTED_ROLL_TYPES = /* @__PURE__ */ new Set([
   "attack-roll",
   "spell-attack-roll",
@@ -534,6 +669,7 @@ function buildInputFromMessage(message) {
   return {
     systemId: game.system.id,
     context: message.flags?.pf2e?.context ?? null,
+    dnd5eRoll: null,
     rollMode: message.rollMode ?? "publicroll",
     whisperLength: message.whisper?.length ?? 0,
     blind: message.blind ?? false,
@@ -546,41 +682,36 @@ function buildInputFromMessage(message) {
     perceptionCritsEnabled: getSetting(SETTINGS.ENABLE_PERCEPTION_CRITS)
   };
 }
-function hasNat20Result(message) {
-  const rolls = message.rolls;
-  if (!Array.isArray(rolls)) return false;
-  for (const roll of rolls) {
-    const dice = roll.dice;
-    if (!Array.isArray(dice)) continue;
-    for (const die of dice) {
-      if (die.faces !== 20) continue;
-      const results = die.results ?? [];
-      for (const r of results) {
-        if (r.discarded === true) continue;
-        if (r.active === false) continue;
-        if (r.result === 20) return true;
-      }
-    }
-  }
-  return false;
+const pf2eAdapter = {
+  systemId: PF2E_SYSTEM_ID$1,
+  buildInput: buildInputFromMessage,
+  detect
+};
+const ADAPTERS = [pf2eAdapter, dnd5eAdapter];
+function getAdapter(systemId) {
+  return ADAPTERS.find((a) => a.systemId === systemId);
 }
 let lastDiceSoNiceMessageId = null;
 let lastDiceSoNiceTimestamp = 0;
 function registerDetector() {
+  const adapter = getAdapter(game.system.id);
+  if (!adapter) return;
   const dsnActive = !!game.dice3d;
   if (dsnActive) {
     Hooks.on("diceSoNiceRollComplete", (messageId) => {
-      lastDiceSoNiceMessageId = messageId;
+      const id = messageId;
+      lastDiceSoNiceMessageId = id;
       lastDiceSoNiceTimestamp = performance.now();
-      const message = getChatMessageById(messageId);
-      if (message) processMessage(message);
+      const message = getChatMessageById(id);
+      if (message) processMessage(adapter, message);
     });
   }
-  Hooks.on("createChatMessage", (message) => {
+  Hooks.on("createChatMessage", (raw) => {
+    const message = raw;
     if (dsnActive && message.id && lastDiceSoNiceMessageId === message.id && performance.now() - lastDiceSoNiceTimestamp < 5e3) {
       return;
     }
-    if (!dsnActive) processMessage(message);
+    if (!dsnActive) processMessage(adapter, message);
   });
 }
 function getChatMessageById(messageId) {
@@ -592,12 +723,15 @@ function getChatMessageById(messageId) {
 function messageAuthorId(message) {
   return message.author?.id ?? (typeof message.user === "string" ? message.user : message.user?.id);
 }
-function processMessage(message) {
+function looksLikeCrit(input) {
+  return input.context?.outcome === "criticalSuccess" || input.criticalHit === true || input.nat20Detected;
+}
+function processMessage(adapter, message) {
   if (messageAuthorId(message) !== game.user.id) return;
-  const input = buildInputFromMessage(message);
-  const result = detect(input);
+  const input = adapter.buildInput(message);
+  const result = adapter.detect(input);
   if (!result.fire) {
-    if (input.context?.outcome === "criticalSuccess" || input.nat20Detected) {
+    if (looksLikeCrit(input)) {
       console.debug(`${MODULE_ID} | crit suppressed:`, result.reason);
     }
     return;
@@ -851,12 +985,17 @@ function registerActorSheetHooks() {
     else header.appendChild(btn);
   });
 }
+function isSupportedSystem() {
+  return SUPPORTED_SYSTEM_IDS.includes(game.system.id);
+}
 Hooks.once("init", () => {
-  if (game.system.id !== PF2E_SYSTEM_ID$1) {
-    console.warn(`${MODULE_ID} | Non-PF2e system detected (${game.system.id}). Module disabled.`);
+  if (!isSupportedSystem()) {
+    console.warn(
+      `${MODULE_ID} | Unsupported system detected (${game.system.id}). Supported systems: ${SUPPORTED_SYSTEM_IDS.join(", ")}. Module disabled.`
+    );
     return;
   }
-  console.log(`${MODULE_ID} | init`);
+  console.log(`${MODULE_ID} | init (system: ${game.system.id})`);
   registerSettings();
   const mod = game.modules.get(MODULE_ID);
   if (mod) {
@@ -864,7 +1003,7 @@ Hooks.once("init", () => {
   }
 });
 Hooks.once("ready", async () => {
-  if (game.system.id !== PF2E_SYSTEM_ID$1) return;
+  if (!isSupportedSystem()) return;
   console.log(`${MODULE_ID} | ready`);
   await runMigrations();
   mountOverlay();

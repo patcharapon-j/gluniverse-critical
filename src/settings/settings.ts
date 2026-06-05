@@ -1,4 +1,5 @@
 import {
+  DND5E_SYSTEM_ID,
   DURATION_DEFAULT_MS,
   DURATION_MAX_MS,
   DURATION_MIN_MS,
@@ -9,6 +10,7 @@ import {
 import { GMConfigMenu } from './gm-config-menu';
 
 declare const game: {
+  system: { id: string };
   settings: {
     register(scope: string, key: string, data: object): void;
     registerMenu(scope: string, key: string, data: object): void;
@@ -17,6 +19,30 @@ declare const game: {
   };
   i18n: { localize(key: string): string };
 };
+
+/**
+ * The "degree of success" trigger mode is system-specific: PF2e worlds get the
+ * PF2e critical-success outcome, dnd5e worlds get the D&D 5e critical hit. The
+ * universal Natural-20 mode is offered to both.
+ */
+function triggerModeConfig(): { choices: Record<string, string>; default: string } {
+  if (game.system.id === DND5E_SYSTEM_ID) {
+    return {
+      choices: {
+        [TRIGGER_MODES.DND5E_CRITICAL_HIT]: 'GLUC.Settings.TriggerModeChoiceDnd5e',
+        [TRIGGER_MODES.NAT20_ONLY]: 'GLUC.Settings.TriggerModeChoiceNat20',
+      },
+      default: TRIGGER_MODES.DND5E_CRITICAL_HIT,
+    };
+  }
+  return {
+    choices: {
+      [TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS]: 'GLUC.Settings.TriggerModeChoicePF2e',
+      [TRIGGER_MODES.NAT20_ONLY]: 'GLUC.Settings.TriggerModeChoiceNat20',
+    },
+    default: TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS,
+  };
+}
 
 export function registerSettings(): void {
   game.settings.registerMenu(MODULE_ID, 'gmConfigMenu', {
@@ -65,17 +91,15 @@ export function registerSettings(): void {
     range: { min: DURATION_MIN_MS, max: DURATION_MAX_MS, step: 50 },
   });
 
+  const triggerMode = triggerModeConfig();
   game.settings.register(MODULE_ID, SETTINGS.TRIGGER_MODE, {
     name: 'GLUC.Settings.TriggerMode',
     hint: 'GLUC.Settings.TriggerModeHint',
     scope: 'world',
     config: true,
     type: String,
-    choices: {
-      [TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS]: 'GLUC.Settings.TriggerModeChoicePF2e',
-      [TRIGGER_MODES.NAT20_ONLY]: 'GLUC.Settings.TriggerModeChoiceNat20',
-    },
-    default: TRIGGER_MODES.PF2E_DEGREE_OF_SUCCESS,
+    choices: triggerMode.choices,
+    default: triggerMode.default,
   });
 
   game.settings.register(MODULE_ID, SETTINGS.ENABLE_SKILL_CRITS, {

@@ -1,7 +1,7 @@
 {
   "id": "gluniverse-critical",
   "title": "GLUniverse Critical",
-  "description": "JRPG-inspired fullscreen cinematic animations on PF2e Critical Successes. Inspired by Persona 5 Royal, Persona 3 Reloaded, Final Fantasy, and Genshin Impact.",
+  "description": "JRPG-inspired fullscreen cinematic animations on PF2e Critical Successes and D&D 5e critical hits. Inspired by Persona 5 Royal, Persona 3 Reloaded, Final Fantasy, and Genshin Impact.",
   "version": "1.4.3",
   "compatibility": {
     "minimum": "13",
@@ -33,6 +33,14 @@
         "compatibility": {
           "minimum": "6.0.0",
           "verified": "7"
+        }
+      },
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "5.0.0",
+          "verified": "5"
         }
       }
     ]

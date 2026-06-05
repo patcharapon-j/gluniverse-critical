@@ -9,7 +9,7 @@ export const DURATION_MAX_MS = 3000;
 export const DURATION_DEFAULT_MS = 1000;
 
 export const EASE_IN_FRACTION = 0.15;
-export const EASE_OUT_FRACTION = 0.20;
+export const EASE_OUT_FRACTION = 0.2;
 
 export const QUEUE_MAX = 3;
 export const DEDUPE_WINDOW_MS = 500;
@@ -34,6 +34,7 @@ export const SETTINGS = {
 
 export const TRIGGER_MODES = {
   PF2E_DEGREE_OF_SUCCESS: 'pf2e',
+  DND5E_CRITICAL_HIT: 'dnd5e',
   NAT20_ONLY: 'nat20',
 } as const;
 
@@ -53,3 +54,10 @@ export const LEGACY_ACTOR_FLAG_KEYS = [
 ] as const;
 
 export const PF2E_SYSTEM_ID = 'pf2e' as const;
+export const DND5E_SYSTEM_ID = 'dnd5e' as const;
+
+/** Game systems this module knows how to read criticals from. */
+export const SUPPORTED_SYSTEM_IDS: readonly string[] = [PF2E_SYSTEM_ID, DND5E_SYSTEM_ID];
+
+/** dnd5e skill key for Perception (CONFIG.DND5E.skills.prc). */
+export const DND5E_PERCEPTION_SKILL_ID = 'prc' as const;

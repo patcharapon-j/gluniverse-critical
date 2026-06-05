@@ -23,14 +23,15 @@
       "CinematicDurationHint": "Total length of the snap-in / hold / snap-out animation. 600–3000ms.",
 
       "TriggerMode": "Trigger Mode",
-      "TriggerModeHint": "Choose what counts as a critical: the PF2e degree-of-success outcome, or any natural 20 on the d20.",
+      "TriggerModeHint": "Choose what counts as a critical: the system's critical outcome (PF2e Critical Success / D&D 5e critical hit), or any natural 20 on the d20.",
       "TriggerModeChoicePF2e": "PF2e Degree of Success (Critical Success)",
+      "TriggerModeChoiceDnd5e": "D&D 5e Critical Hit (attack crit; nat 20 on checks/saves)",
       "TriggerModeChoiceNat20": "Natural 20 Only (any d20 showing 20)",
 
       "EnableSkillCrits": "Enable Skill Check criticals",
-      "EnableSkillCritsHint": "Trigger cinematics on critical Skill Checks.",
+      "EnableSkillCritsHint": "Trigger cinematics on critical Skill Checks (PF2e) or natural-20 ability/skill/tool checks (D&D 5e).",
       "EnablePerceptionCrits": "Enable Perception criticals",
-      "EnablePerceptionCritsHint": "Trigger cinematics on critical Perception checks.",
+      "EnablePerceptionCritsHint": "Trigger cinematics on critical Perception checks (PF2e) or natural-20 Perception checks (D&D 5e).",
 
       "AllowPlayerOptOut": "Allow players to disable cinematics",
       "AllowPlayerOptOutHint": "When ON, each player can disable cinematics in their client settings.",
@@ -65,7 +66,7 @@
     },
 
     "Notifications": {
-      "NonPF2eWarning": "GLUniverse Critical is configured for the PF2e system. Cinematics are disabled.",
+      "UnsupportedSystemWarning": "GLUniverse Critical supports the PF2e and D&D 5e systems. Cinematics are disabled for this system.",
       "PortraitLoadFailed": "Could not load image for cinematic.",
       "SFXLoadFailed": "Could not load critical SFX audio file."
     }

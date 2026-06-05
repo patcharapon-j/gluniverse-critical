@@ -1,10 +1,8 @@
-import { ACTOR_FLAGS, FLAG_SCOPE, PF2E_SYSTEM_ID, SETTINGS, type TriggerMode } from '../constants';
+import { ACTOR_FLAGS, DND5E_SYSTEM_ID, FLAG_SCOPE, SETTINGS, type TriggerMode } from '../constants';
 import { getSetting } from '../settings/settings';
-import { detect } from './detect';
-import { hasNat20Result } from './dice';
+import { getAttackCriticalHit, hasNat20Result } from './dice';
+import { detectDnd5e } from './dnd5e-detect';
 import type { AnyActor, AnyChatMessage, DetectorInput, SystemAdapter } from './types';
-
-export { detect } from './detect';
 
 declare const game: {
   system: { id: string };
@@ -14,10 +12,14 @@ declare const game: {
 export function buildInputFromMessage(message: AnyChatMessage): DetectorInput {
   const actorId = message.speaker?.actor;
   const actor = actorId ? (game.actors.get(actorId) as AnyActor | undefined) : undefined;
+  const rollFlag = message.flags?.dnd5e?.roll ?? null;
   return {
     systemId: game.system.id,
-    context: (message.flags?.pf2e?.context ?? null) as DetectorInput['context'],
-    dnd5eRoll: null,
+    context: null,
+    dnd5eRoll: rollFlag
+      ? { type: rollFlag.type, skillId: rollFlag.skillId, ability: rollFlag.ability }
+      : null,
+    criticalHit: getAttackCriticalHit(message),
     rollMode: message.rollMode ?? 'publicroll',
     whisperLength: message.whisper?.length ?? 0,
     blind: message.blind ?? false,
@@ -33,8 +35,8 @@ export function buildInputFromMessage(message: AnyChatMessage): DetectorInput {
   };
 }
 
-export const pf2eAdapter: SystemAdapter = {
-  systemId: PF2E_SYSTEM_ID,
+export const dnd5eAdapter: SystemAdapter = {
+  systemId: DND5E_SYSTEM_ID,
   buildInput: buildInputFromMessage,
-  detect,
+  detect: detectDnd5e,
 };
