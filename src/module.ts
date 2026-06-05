@@ -1,6 +1,6 @@
 import { mountOverlay } from './cinematic/overlay-app';
-import { MODULE_ID, PF2E_SYSTEM_ID } from './constants';
-import { registerDetector } from './detector/pf2e-detector';
+import { MODULE_ID, SUPPORTED_SYSTEM_IDS } from './constants';
+import { registerDetector } from './detector/register';
 import { runMigrations } from './migrations';
 import { createPublicAPI } from './public-api';
 import { registerSettings } from './settings/settings';
@@ -21,13 +21,20 @@ declare const game: {
   i18n: { localize(key: string): string; format(key: string, data: object): string };
 };
 
+function isSupportedSystem(): boolean {
+  return SUPPORTED_SYSTEM_IDS.includes(game.system.id);
+}
+
 Hooks.once('init', () => {
-  if (game.system.id !== PF2E_SYSTEM_ID) {
-    console.warn(`${MODULE_ID} | Non-PF2e system detected (${game.system.id}). Module disabled.`);
+  if (!isSupportedSystem()) {
+    console.warn(
+      `${MODULE_ID} | Unsupported system detected (${game.system.id}). ` +
+        `Supported systems: ${SUPPORTED_SYSTEM_IDS.join(', ')}. Module disabled.`,
+    );
     return;
   }
 
-  console.log(`${MODULE_ID} | init`);
+  console.log(`${MODULE_ID} | init (system: ${game.system.id})`);
   registerSettings();
 
   const mod = game.modules.get(MODULE_ID);
@@ -37,7 +44,7 @@ Hooks.once('init', () => {
 });
 
 Hooks.once('ready', async () => {
-  if (game.system.id !== PF2E_SYSTEM_ID) return;
+  if (!isSupportedSystem()) return;
 
   console.log(`${MODULE_ID} | ready`);
   await runMigrations();

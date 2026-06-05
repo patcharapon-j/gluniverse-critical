@@ -8,23 +8,15 @@ const mocks = vi.hoisted(() => ({
   resolveCritEvent: vi.fn(),
 }));
 
-vi.mock('../src/cinematic/queue', () => ({
-  enqueue: mocks.enqueue,
-}));
-
-vi.mock('../src/cinematic/resolver', () => ({
-  resolveCritEvent: mocks.resolveCritEvent,
-}));
-
-vi.mock('../src/sockets/broadcast', () => ({
-  broadcastCrit: mocks.broadcastCrit,
-}));
+vi.mock('../src/cinematic/queue', () => ({ enqueue: mocks.enqueue }));
+vi.mock('../src/cinematic/resolver', () => ({ resolveCritEvent: mocks.resolveCritEvent }));
+vi.mock('../src/sockets/broadcast', () => ({ broadcastCrit: mocks.broadcastCrit }));
 
 vi.mock('../src/settings/settings', () => ({
   getSetting: vi.fn((key: string) => {
     switch (key) {
       case SETTINGS.TRIGGER_MODE:
-        return 'pf2e';
+        return 'dnd5e';
       case SETTINGS.ENABLE_SKILL_CRITS:
         return true;
       case SETTINGS.ENABLE_PERCEPTION_CRITS:
@@ -48,11 +40,11 @@ const criticalMessage = {
   rollMode: 'publicroll',
   whisper: [],
   blind: false,
-  flags: { pf2e: { context: { type: 'attack-roll', outcome: 'criticalSuccess' } } },
-  rolls: [],
+  flags: { dnd5e: { messageType: 'roll', roll: { type: 'attack' } } },
+  rolls: [{ dice: [{ faces: 20, results: [{ result: 20 }] }] }],
 };
 
-describe('pf2e detector hooks', () => {
+describe('dnd5e detector hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const hooks = new Map<string, (...args: unknown[]) => unknown>();
@@ -62,9 +54,8 @@ describe('pf2e detector hooks', () => {
       }),
     };
     (globalThis as { game?: unknown }).game = {
-      system: { id: 'pf2e' },
+      system: { id: 'dnd5e' },
       user: { id: 'player-1', isGM: false },
-      dice3d: {},
       actors: { get: vi.fn(() => actor) },
       messages: {
         get: vi.fn((id: string) => (id === criticalMessage.id ? criticalMessage : undefined)),
@@ -76,7 +67,7 @@ describe('pf2e detector hooks', () => {
     mocks.resolveCritEvent.mockReturnValue({
       messageId: 'message-1',
       actorId: 'actor-1',
-      actorName: 'Valeros',
+      actorName: 'Bruenor',
       isPC: true,
       imagePath: 'actor.png',
       durationMs: 1000,
@@ -85,14 +76,15 @@ describe('pf2e detector hooks', () => {
     } satisfies CritEvent);
   });
 
-  it('processes Dice So Nice completed player rolls from the Foundry chat collection', async () => {
+  it('selects the dnd5e adapter and fires on a critical attack', async () => {
     const { registerDetector } = await import('../src/detector/register');
 
     registerDetector();
     const hooks = (
       globalThis as unknown as { __hooks: Map<string, (...args: unknown[]) => unknown> }
     ).__hooks;
-    hooks.get('diceSoNiceRollComplete')?.('message-1');
+    // No Dice So Nice in this world, so the createChatMessage hook drives detection.
+    hooks.get('createChatMessage')?.(criticalMessage);
 
     expect(mocks.resolveCritEvent).toHaveBeenCalledWith({
       messageId: 'message-1',

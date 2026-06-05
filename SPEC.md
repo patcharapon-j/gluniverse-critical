@@ -1,6 +1,6 @@
 # GLUniverse Critical — Specification
 
-PF2e-only Foundry VTT v13 module. JRPG-inspired fullscreen cinematic animations on Critical Success rolls.
+Foundry VTT v13–v14 module for the PF2e and D&D 5e systems. JRPG-inspired fullscreen cinematic animations on critical rolls.
 
 This file is the locked decision log from the grilling session. Implementation is built against this spec — if something here is wrong, update this file *before* the code.
 
@@ -29,7 +29,17 @@ Only PF2e `Critical Success` degree-of-success counts. Raw nat 20s that resolve 
 - **Secret / blind GM rolls:** NEVER trigger (filter on chat message `whisper` / `blind` / `rollMode`)
 
 ### 1.4 System scope
-PF2e only. Module no-ops with a single console warning on non-PF2e systems. `module.json` declares the system relationship.
+PF2e and D&D 5e (`dnd5e`). The module no-ops with a single console warning on any other system. `module.json` declares both system relationships.
+
+Detection is per-system via a `SystemAdapter` (`src/detector/`): each system pairs a message→`DetectorInput` builder with a pure `detect` function, and the generic registrar (`register.ts`) selects the adapter from `game.system.id`. Shared d20 reading lives in `dice.ts`.
+
+**D&D 5e crit definition.** D&D 5e has no degree of success, so the system critical mode keys off `flags.dnd5e.roll.type`:
+- `attack` → fires on a critical hit (active d20 ≥ the `criticalSuccess` threshold, default 20, lowered by Improved Critical; prefers the deserialized `D20Roll.isCritical`).
+- `save`, `death` → fire on a natural 20.
+- `ability`, `skill`, `tool` → fire on a natural 20, gated by the Skill Check toggle (the Perception toggle gates the `prc` skill).
+- `damage`, `initiative` → never.
+
+The per-system "degree of success" trigger mode is offered as **PF2e Degree of Success** on PF2e worlds and **D&D 5e Critical Hit** on dnd5e worlds; **Natural 20 Only** is offered on both and is fully system-agnostic.
 
 ---
 
